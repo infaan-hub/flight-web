@@ -10,11 +10,11 @@ import type { FlightDetail, Airport } from "../types"
 import { Search, Filter, Loader2, PlaneLanding, PlaneTakeoff } from "lucide-react"
 
 const statusColor: Record<string, string> = {
-  scheduled: "bg-blue-100 text-blue-800",
-  active: "bg-green-100 text-green-800",
-  landed: "bg-gray-100 text-gray-800",
-  delayed: "bg-yellow-100 text-yellow-800",
-  cancelled: "bg-red-100 text-red-800",
+  scheduled: "bg-blue-400/10 text-blue-300 border border-blue-400/20",
+  active: "bg-green-400/10 text-green-300 border border-green-400/20",
+  landed: "bg-white/10 text-slate-300 border border-white/15",
+  delayed: "bg-amber-400/10 text-amber-300 border border-amber-400/20",
+  cancelled: "bg-red-400/10 text-red-300 border border-red-400/20",
 }
 
 export default function FlightSearch() {
@@ -80,7 +80,7 @@ export default function FlightSearch() {
   return (
     <div className="container-custom py-8 space-y-8">
       <div>
-        <h1 className="text-3xl font-bold">Search Flights</h1>
+        <h1 className="font-display text-3xl font-bold">Search Flights</h1>
         <p className="text-muted-foreground mt-1">
           Search by flight number, airline, or airport
         </p>

@@ -1,5 +1,5 @@
 {
-  "name": "frontend",
+  "name": "zanflightgo-frontend",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,8 +11,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "animejs": "^4.5.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "framer-motion": "^12.43.0",
     "lucide-react": "^1.28.0",
     "mapbox-gl": "^3.27.0",
     "react": "^19.2.8",

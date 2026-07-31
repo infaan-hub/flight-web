@@ -50,7 +50,7 @@ export default function Dashboard() {
   return (
     <div className="container-custom py-8 space-y-8">
       <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <h1 className="font-display text-3xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground mt-1">
           Global aviation statistics and insights
         </p>

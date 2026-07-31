@@ -1,4 +1,4 @@
-# SkyTrack — Flight Information System
+﻿# ZanflightGO â€” Flight Information System
 
 Live flight tracking with a Mapbox map. Django + DRF backend, React (Vite) frontend.
 
@@ -17,10 +17,10 @@ requirements.txt   Root requirements shim for manual Web Service builds
 | Source | Use | Quota |
 |---|---|---|
 | OpenSky Network | Live positions, flight trail (`/tracks`) | 400 req/day anonymous, ~4000/day with API client |
-| AviationStack | Schedules, airport arrivals/departures boards | 500 req/month (free) — responses cached 10 min |
-| Local DB (seed) | "Today's flights" near a location | — |
+| AviationStack | Schedules, airport arrivals/departures boards | 500 req/month (free) â€” responses cached 10 min |
+| Local DB (seed) | "Today's flights" near a location | â€” |
 
-OpenSky fallback order: authenticated OAuth2 token → anonymous → bundled sample data.
+OpenSky fallback order: authenticated OAuth2 token â†’ anonymous â†’ bundled sample data.
 
 ## API endpoints
 
@@ -43,7 +43,7 @@ results are cached to protect upstream quota.
 ## Data conventions
 
 - **Flight states** follow the standard lifecycle vocabulary (OAG/ICAO-style):
-  `Scheduled → OutGate (departed gate) → InAir → Landed → InGate`, plus
+  `Scheduled â†’ OutGate (departed gate) â†’ InAir â†’ Landed â†’ InGate`, plus
   `Canceled` and `Diverted`. Provider-specific strings are normalized to these
   states (backend `canonical_status`, frontend `normalizeStatusState`).
 - **Delay** = actual (or estimated) time minus scheduled time. A difference
@@ -53,8 +53,8 @@ results are cached to protect upstream quota.
   three times. Estimated is the provider's current best prediction; when a
   provider omits it, it is derived as scheduled + delay (minutes).
 - **Times** are stored/transmitted in ISO 8601 (UTC). The UI shows UTC always,
-  plus an *approximate* local time (≈) derived from the airport's longitude
-  (±1h, not official timezone data) so times are never shown without a label.
+  plus an *approximate* local time (â‰ˆ) derived from the airport's longitude
+  (Â±1h, not official timezone data) so times are never shown without a label.
 - **Estimated positions**: OpenSky ADS-B is crowdsourced; positions are dimmed
   and labeled "estimated" when the last contact is older than 60 s, and the
   detail page flags implausible position jumps (>500 km between updates <5 min
@@ -114,13 +114,13 @@ Frontend (`frontend/.env`):
 
 **Recommended: Blueprint.** `render.yaml` pins `PYTHON_VERSION=3.12.4` (the
 runtime.txt pin is ignored by manual Web Services) and runs migrations +
-`seed_data` automatically. In Render: **New + → Blueprint → this repo**.
+`seed_data` automatically. In Render: **New + â†’ Blueprint â†’ this repo**.
 
 After the first Blueprint deploy, set the `sync: false` vars in the dashboard:
 
 - Backend service: `AVIATIONSTACK_API_KEY`, `OPENSKY_CLIENT_ID`,
   `OPENSKY_CLIENT_SECRET`
-- Frontend service: `VITE_MAPBOX_TOKEN` (then trigger a rebuild — Vite bakes
+- Frontend service: `VITE_MAPBOX_TOKEN` (then trigger a rebuild â€” Vite bakes
   env into the bundle at build time)
 - Add the frontend's own onrender.com URL to `CORS_ALLOWED_ORIGINS`
 
@@ -136,13 +136,13 @@ same env vars above in each service.
 - `CORS_ALLOW_ALL` defaults to `False`; origins must be explicitly allowed.
 - `DJANGO_ALLOWED_HOSTS` has no wildcard fallback in production.
 - **Mapbox token**: the `pk.` token is public by design, but restrict it to your
-  site URL in the Mapbox dashboard (Account → Tokens → URL restrictions) so it
+  site URL in the Mapbox dashboard (Account â†’ Tokens â†’ URL restrictions) so it
   cannot be used by others.
 - **OpenSky credentials**: if you see `unauthorized_client` (401) in the logs,
-  regenerate the API client at https://opensky-network.org — the current client
+  regenerate the API client at https://opensky-network.org â€” the current client
   id/secret pair is rejected by OpenSky's auth server.
-- `npm audit` reports GHSA-qwww-vcr4-c8h2 (react-router 7.12.0–8.2.0, RSC-mode
-  CSRF). SkyTrack is a plain SPA (`BrowserRouter`, no React Server Components),
+- `npm audit` reports GHSA-qwww-vcr4-c8h2 (react-router 7.12.0â€“8.2.0, RSC-mode
+  CSRF). ZanflightGO is a plain SPA (`BrowserRouter`, no React Server Components),
   so the advisory does not apply; no patched release exists yet.
 
 ## Testing
@@ -159,3 +159,4 @@ npm run build   # tsc + vite production build
 ```
 
 CI (`.github/workflows/ci.yml`) runs both on every push.
+
