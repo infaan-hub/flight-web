@@ -25,7 +25,7 @@ export default function Home() {
       const loc = location
       const [live, today, statsData] = await Promise.all([
         getLiveFlights(loc.bounds),
-        getTodaysFlights(),
+        getTodaysFlights(loc.lat, loc.lng, loc.isZanzibar ? 2000 : 1200),
         getFlightStats(),
       ])
       setLiveFlights(live.slice(0, 100))
@@ -119,7 +119,9 @@ export default function Home() {
 
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold">Today's Flights</h2>
+          <h2 className="text-2xl font-bold">
+            Today's Flights Near {location.label}
+          </h2>
           <Link to="/flights">
             <Button variant="ghost" size="sm" className="gap-1">
               View All <ArrowRight className="h-4 w-4" />

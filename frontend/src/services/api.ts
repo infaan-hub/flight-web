@@ -63,8 +63,13 @@ export function getFlightDetail(flightNumber: string): Promise<FlightDetail> {
   return fetchJSON<FlightDetail>(`${API_BASE}/flights/${flightNumber}/`)
 }
 
-export function getTodaysFlights(): Promise<FlightDetail[]> {
-  return fetchJSON<FlightDetail[]>(`${API_BASE}/flights/today/`)
+export function getTodaysFlights(lat?: number, lng?: number, radiusKm?: number): Promise<FlightDetail[]> {
+  const params = new URLSearchParams()
+  if (lat != null) params.set("lat", String(lat))
+  if (lng != null) params.set("lng", String(lng))
+  if (radiusKm != null) params.set("radius_km", String(radiusKm))
+  const qs = params.toString()
+  return fetchJSON<FlightDetail[]>(`${API_BASE}/flights/today/${qs ? `?${qs}` : ""}`)
 }
 
 export function getFlightStats(): Promise<FlightStats> {

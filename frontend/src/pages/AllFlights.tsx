@@ -3,24 +3,31 @@ import { Card, CardContent } from "../components/ui/card"
 import { Input } from "../components/ui/input"
 import FlightCard from "../components/FlightCard"
 import { getTodaysFlights } from "../services/api"
+import { getUserLocation, getDefaultLocation, type LocationInfo } from "../lib/geo"
 import type { FlightDetail } from "../types"
-import { Loader2, Search } from "lucide-react"
+import { Loader2, Search, MapPin } from "lucide-react"
 
 export default function AllFlights() {
   const [flights, setFlights] = useState<FlightDetail[]>([])
   const [filtered, setFiltered] = useState<FlightDetail[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const [location, setLocation] = useState<LocationInfo>(getDefaultLocation())
 
   useEffect(() => {
-    getTodaysFlights()
+    getUserLocation().then(setLocation)
+  }, [])
+
+  useEffect(() => {
+    const loc = location
+    getTodaysFlights(loc.lat, loc.lng, loc.isZanzibar ? 2000 : 1200)
       .then((data) => {
         setFlights(data)
         setFiltered(data)
       })
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [])
+  }, [location])
 
   useEffect(() => {
     if (!search.trim()) {
@@ -53,7 +60,12 @@ export default function AllFlights() {
     <div className="container-custom py-8 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Today's Flights</h1>
+          <h1 className="text-3xl font-bold">
+            Today's Flights Near{" "}
+            <span className="inline-flex items-center gap-1">
+              <MapPin className="h-6 w-6 text-primary" /> {location.label}
+            </span>
+          </h1>
           <p className="text-muted-foreground mt-1">
             {flights.length} flights scheduled for today
           </p>

@@ -80,6 +80,10 @@ export default function FlightDetail() {
         vertical_rate: null,
         on_ground: false,
         last_contact: null,
+        departure_airport: flight.departure_airport,
+        arrival_airport: flight.arrival_airport,
+        departure_airport_info: flight.departure_airport_info,
+        arrival_airport_info: flight.arrival_airport_info,
       }]
     : []
 

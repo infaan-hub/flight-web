@@ -32,6 +32,34 @@ class Command(BaseCommand):
             {'icao': 'VHHH', 'iata': 'HKG', 'name': 'Hong Kong International', 'city': 'Hong Kong', 'country': 'Hong Kong', 'latitude': 22.3080, 'longitude': 113.9185},
             {'icao': 'YSSY', 'iata': 'SYD', 'name': 'Sydney Kingsford Smith', 'city': 'Sydney', 'country': 'Australia', 'latitude': -33.9399, 'longitude': 151.1753},
             {'icao': 'LTBA', 'iata': 'IST', 'name': 'Istanbul Airport', 'city': 'Istanbul', 'country': 'Turkey', 'latitude': 41.2753, 'longitude': 28.7519},
+            {'icao': 'RJAA', 'iata': 'NRT', 'name': 'Narita International', 'city': 'Tokyo', 'country': 'Japan', 'latitude': 35.7720, 'longitude': 140.3929},
+            {'icao': 'EDDM', 'iata': 'MUC', 'name': 'Munich Airport', 'city': 'Munich', 'country': 'Germany', 'latitude': 48.3538, 'longitude': 11.7861},
+            # ===== East & Southern Africa (regional) =====
+            {'icao': 'HTZA', 'iata': 'ZNZ', 'name': 'Abeid Amani Karume International', 'city': 'Zanzibar', 'country': 'Tanzania', 'latitude': -6.2222, 'longitude': 39.2249},
+            {'icao': 'HTDA', 'iata': 'DAR', 'name': 'Julius Nyerere International', 'city': 'Dar es Salaam', 'country': 'Tanzania', 'latitude': -6.8781, 'longitude': 39.2026},
+            {'icao': 'HTKJ', 'iata': 'JRO', 'name': 'Kilimanjaro International', 'city': 'Kilimanjaro', 'country': 'Tanzania', 'latitude': -3.4294, 'longitude': 37.0745},
+            {'icao': 'HTMW', 'iata': 'MWZ', 'name': 'Mwanza Airport', 'city': 'Mwanza', 'country': 'Tanzania', 'latitude': -2.4445, 'longitude': 32.9327},
+            {'icao': 'HTTG', 'iata': 'TGT', 'name': 'Tanga Airport', 'city': 'Tanga', 'country': 'Tanzania', 'latitude': -5.0924, 'longitude': 39.0712},
+            {'icao': 'HTTB', 'iata': 'TBO', 'name': 'Tabora Airport', 'city': 'Tabora', 'country': 'Tanzania', 'latitude': -5.0764, 'longitude': 32.8333},
+            {'icao': 'HKJK', 'iata': 'NBO', 'name': 'Jomo Kenyatta International', 'city': 'Nairobi', 'country': 'Kenya', 'latitude': -1.3192, 'longitude': 36.9278},
+            {'icao': 'HKMO', 'iata': 'MBA', 'name': 'Moi International', 'city': 'Mombasa', 'country': 'Kenya', 'latitude': -4.0348, 'longitude': 39.5942},
+            {'icao': 'HUEN', 'iata': 'EBB', 'name': 'Entebbe International', 'city': 'Entebbe', 'country': 'Uganda', 'latitude': 0.0422, 'longitude': 32.4435},
+            {'icao': 'HRYR', 'iata': 'KGL', 'name': 'Kigali International', 'city': 'Kigali', 'country': 'Rwanda', 'latitude': -1.9686, 'longitude': 30.1395},
+            {'icao': 'HBBA', 'iata': 'BJM', 'name': 'Bujumbura International', 'city': 'Bujumbura', 'country': 'Burundi', 'latitude': -3.3241, 'longitude': 29.3185},
+            {'icao': 'HAAB', 'iata': 'ADD', 'name': 'Addis Ababa Bole International', 'city': 'Addis Ababa', 'country': 'Ethiopia', 'latitude': 8.9779, 'longitude': 38.7993},
+            {'icao': 'HCMM', 'iata': 'MGQ', 'name': 'Aden Adde International', 'city': 'Mogadishu', 'country': 'Somalia', 'latitude': 2.0144, 'longitude': 45.3047},
+            {'icao': 'HDAM', 'iata': 'JIB', 'name': 'Djibouti–Ambouli International', 'city': 'Djibouti', 'country': 'Djibouti', 'latitude': 11.5473, 'longitude': 43.1595},
+            {'icao': 'FQMA', 'iata': 'MPM', 'name': 'Maputo International', 'city': 'Maputo', 'country': 'Mozambique', 'latitude': -25.9208, 'longitude': 32.5726},
+            {'icao': 'FWKI', 'iata': 'LLW', 'name': 'Kamuzu International', 'city': 'Lilongwe', 'country': 'Malawi', 'latitude': -13.7890, 'longitude': 33.7810},
+            {'icao': 'FLKK', 'iata': 'LUN', 'name': 'Kenneth Kaunda International', 'city': 'Lusaka', 'country': 'Zambia', 'latitude': -15.3308, 'longitude': 28.4526},
+            {'icao': 'FVHA', 'iata': 'HRE', 'name': 'Robert Gabriel Mugabe International', 'city': 'Harare', 'country': 'Zimbabwe', 'latitude': -17.9318, 'longitude': 31.0928},
+            {'icao': 'FZAA', 'iata': 'FIH', 'name': "N'djili International", 'city': 'Kinshasa', 'country': 'DR Congo', 'latitude': -4.3857, 'longitude': 15.4446},
+            {'icao': 'FMCH', 'iata': 'HAH', 'name': 'Prince Said Ibrahim International', 'city': 'Moroni', 'country': 'Comoros', 'latitude': -11.5337, 'longitude': 43.2719},
+            {'icao': 'FIMP', 'iata': 'MRU', 'name': 'Sir Seewoosagur Ramgoolam International', 'city': 'Port Louis', 'country': 'Mauritius', 'latitude': -20.4302, 'longitude': 57.6836},
+            {'icao': 'FSIA', 'iata': 'SEZ', 'name': 'Seychelles International', 'city': 'Victoria', 'country': 'Seychelles', 'latitude': -4.6743, 'longitude': 55.5218},
+            {'icao': 'FAOR', 'iata': 'JNB', 'name': 'O.R. Tambo International', 'city': 'Johannesburg', 'country': 'South Africa', 'latitude': -26.1392, 'longitude': 28.2460},
+            {'icao': 'FACT', 'iata': 'CPT', 'name': 'Cape Town International', 'city': 'Cape Town', 'country': 'South Africa', 'latitude': -33.9648, 'longitude': 18.6017},
+            {'icao': 'FALE', 'iata': 'DUR', 'name': 'King Shaka International', 'city': 'Durban', 'country': 'South Africa', 'latitude': -29.6144, 'longitude': 31.1197},
         ]
         
         for ap in airports_data:
@@ -43,14 +71,23 @@ class Command(BaseCommand):
         
         airlines = ['United Airlines', 'American Airlines', 'Delta Air Lines', 'Emirates', 'British Airways', 'Lufthansa', 'Air France', 'Singapore Airlines', 'Qatar Airways', 'Turkish Airlines']
         statuses = ['scheduled', 'active', 'landed', 'delayed', 'cancelled']
+        regional_codes = ['ZNZ', 'DAR', 'JRO', 'MWZ', 'TGT', 'TBO', 'NBO', 'MBA', 'EBB', 'KGL',
+                          'BJM', 'ADD', 'MGQ', 'JIB', 'MPM', 'LLW', 'LUN', 'HRE', 'FIH', 'HAH',
+                          'MRU', 'SEZ', 'JNB', 'CPT', 'DUR']
+        regional = [ap for ap in airports_data if ap['iata'] in regional_codes]
         
         flights = []
         today = datetime.now().date()
         for i in range(50):
-            dep = airports_data[random.randint(0, len(airports_data)-1)]
-            arr = airports_data[random.randint(0, len(airports_data)-1)]
+            # 80% of flights touch a regional (African) airport so local views have data
+            if random.random() < 0.8:
+                dep = random.choice(regional)
+                arr = random.choice(regional + airports_data)
+            else:
+                dep = random.choice(airports_data)
+                arr = random.choice(airports_data)
             while arr == dep:
-                arr = airports_data[random.randint(0, len(airports_data)-1)]
+                arr = random.choice(airports_data)
             
             airline = airlines[i % len(airlines)]
             code = airline[:3].upper()

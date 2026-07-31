@@ -63,12 +63,16 @@ export default function FlightMapLeaflet({
 
     const validFlights = flights.filter((f) => f.latitude && f.longitude)
     validFlights.forEach((f) => {
+      const dest = f.arrival_airport_info
+      const destLine = dest?.name
+        ? `<br/><b>→ ${dest.iata || ""} ${dest.name}</b>`
+        : ""
       const marker = L.marker([f.latitude!, f.longitude!], { icon: planeIcon })
         .bindPopup(`
           <b>${f.callsign || "Unknown"}</b><br/>
           Altitude: ${f.altitude ? Math.round(f.altitude) + " ft" : "—"}<br/>
           Speed: ${f.velocity ? Math.round(f.velocity) + " kts" : "—"}<br/>
-          Country: ${f.origin_country || "—"}
+          Country: ${f.origin_country || "—"}${destLine}
         `)
         .addTo(map)
       markersRef.current.push(marker)

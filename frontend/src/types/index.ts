@@ -10,6 +10,10 @@ export interface LiveFlight {
   vertical_rate: number | null
   on_ground: boolean
   last_contact: number | null
+  departure_airport?: string | null
+  arrival_airport?: string | null
+  departure_airport_info?: Airport | null
+  arrival_airport_info?: Airport | null
 }
 
 export interface FlightDetail {
@@ -39,6 +43,8 @@ export interface FlightDetail {
   heading: number | null
   aircraft_type: string
   flight_date: string
+  departure_airport_info?: Airport | null
+  arrival_airport_info?: Airport | null
 }
 
 export interface FlightStats {

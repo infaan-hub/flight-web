@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react"
-import { GoogleMap, Marker, InfoWindow, useLoadScript, OverlayView } from "@react-google-maps/api"
-import type { LiveFlight } from "../types"
+import { GoogleMap, InfoWindow, useLoadScript, OverlayView, Polyline } from "@react-google-maps/api"
+import type { LiveFlight, Airport } from "../types"
 import FlightMapLeaflet from "./FlightMapLeaflet"
 
 interface FlightMapProps {
@@ -12,6 +12,57 @@ interface FlightMapProps {
 }
 
 const ZANZIBAR_CENTER: [number, number] = [-6.2222, 39.2249]
+
+function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const R = 6371
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180
+  const lat1 = (a.lat * Math.PI) / 180
+  const lat2 = (b.lat * Math.PI) / 180
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(h))
+}
+
+function formatEta(distKm: number, speedKts: number | null) {
+  if (!speedKts || speedKts <= 0) return null
+  const hours = distKm / (speedKts * 1.852)
+  const h = Math.floor(hours)
+  const m = Math.round((hours - h) * 60)
+  return h > 0 ? `~${h}h ${m}m` : `~${m}m`
+}
+
+function DestinationPin({ airport }: { airport: Airport }) {
+  return (
+    <div
+      title={`${airport.name} (${airport.iata})`}
+      style={{
+        width: 28,
+        height: 28,
+        borderRadius: "50%",
+        border: "3px solid #2563eb",
+        background: "rgba(37, 99, 235, 0.15)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <span
+        style={{
+          fontSize: 9,
+          fontWeight: 700,
+          color: "#1e40af",
+          background: "#ffffff",
+          borderRadius: 999,
+          padding: "1px 4px",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.3)",
+        }}
+      >
+        {airport.iata}
+      </span>
+    </div>
+  )
+}
 
 function PlaneSVG({ heading, color = "#2563eb", size = 30 }: { heading: number; color?: string; size?: number }) {
   return (
@@ -47,6 +98,11 @@ function FlightMarkers({
     [flights]
   )
 
+  const selectedFlight = useMemo(
+    () => validFlights.find((f) => f.icao24 === selected?.icao24) || null,
+    [validFlights, selected]
+  )
+
   useEffect(() => {
     if (!selected) return
     const found = validFlights.find((f) => f.icao24 === selected.icao24)
@@ -57,6 +113,36 @@ function FlightMarkers({
       setInfoPosition(null)
     }
   }, [validFlights, selected])
+
+  const origin = selectedFlight?.departure_airport_info
+  const dest = selectedFlight?.arrival_airport_info
+  const showOriginRoute =
+    selectedFlight &&
+    selectedFlight.latitude != null &&
+    selectedFlight.longitude != null &&
+    origin &&
+    origin.latitude != null &&
+    origin.longitude != null
+  const showDestRoute =
+    selectedFlight &&
+    selectedFlight.latitude != null &&
+    selectedFlight.longitude != null &&
+    dest &&
+    dest.latitude != null &&
+    dest.longitude != null
+
+  const distanceToDest =
+    selectedFlight &&
+    selectedFlight.latitude != null &&
+    selectedFlight.longitude != null &&
+    dest &&
+    dest.latitude != null &&
+    dest.longitude != null
+      ? haversineKm(
+          { lat: selectedFlight.latitude, lng: selectedFlight.longitude },
+          { lat: dest.latitude, lng: dest.longitude }
+        )
+      : null
 
   return (
     <>
@@ -80,6 +166,67 @@ function FlightMarkers({
         </OverlayView>
       ))}
 
+      {showOriginRoute && (
+        <Polyline
+          path={[
+            { lat: origin!.latitude!, lng: origin!.longitude! },
+            { lat: selectedFlight.latitude!, lng: selectedFlight.longitude! },
+          ]}
+          options={{
+            strokeColor: "#94a3b8",
+            strokeOpacity: 0.6,
+            strokeWeight: 2,
+            geodesic: true,
+            icons: [
+              {
+                icon: {
+                  path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
+                  scale: 1.1,
+                  fillColor: "#94a3b8",
+                  fillOpacity: 0.6,
+                },
+                offset: "0%",
+              },
+            ],
+          }}
+        />
+      )}
+
+      {showDestRoute && (
+        <>
+          <Polyline
+            path={[
+              { lat: selectedFlight.latitude!, lng: selectedFlight.longitude! },
+              { lat: dest!.latitude!, lng: dest!.longitude! },
+            ]}
+            options={{
+              strokeColor: "#2563eb",
+              strokeOpacity: 0.85,
+              strokeWeight: 3,
+              geodesic: true,
+              icons: [
+                {
+                  icon: {
+                    path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                    scale: 1.4,
+                    fillColor: "#2563eb",
+                    fillOpacity: 0.85,
+                  },
+                  offset: "100%",
+                },
+              ],
+            }}
+          />
+          <OverlayView
+            position={{ lat: dest!.latitude!, lng: dest!.longitude! }}
+            mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+            getPixelPositionOffset={(w, h) => ({ x: -(w / 2), y: -(h / 2) })}
+          >
+            <DestinationPin airport={dest!} />
+          </OverlayView>
+        </>
+      )}
+
       {selected && infoPosition && (
         <InfoWindow
           position={infoPosition}
@@ -92,18 +239,60 @@ function FlightMarkers({
             disableAutoPan: false,
           }}
         >
-          <div className="p-1 min-w-[160px]">
-            <div className="font-bold text-sm mb-1">{selected.callsign || "Unknown Flight"}</div>
-            <div className="text-xs text-gray-600 space-y-0.5">
-              <div>Country: {selected.origin_country || "—"}</div>
-              <div>
-                Altitude:{" "}
-                {selected.altitude ? `${Math.round(selected.altitude).toLocaleString()} ft` : "—"}
+          <div className="p-1 min-w-[180px]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="font-bold text-sm">{selected.callsign || "Unknown Flight"}</div>
+              <span
+                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                  selected.on_ground
+                    ? "bg-gray-100 text-gray-600"
+                    : "bg-green-100 text-green-700"
+                }`}
+              >
+                {selected.on_ground ? "On Ground" : "In Air"}
+              </span>
+            </div>
+            <div className="text-xs text-gray-600 space-y-1 mt-1.5">
+              <div className="flex justify-between gap-4">
+                <span>Origin</span>
+                <span className="font-medium text-right">{selected.origin_country || "—"}</span>
               </div>
-              <div>
-                Speed: {selected.velocity ? `${Math.round(selected.velocity)} kts` : "—"}
+              <div className="flex justify-between gap-4">
+                <span>Altitude</span>
+                <span className="font-medium">
+                  {selected.altitude
+                    ? `${Math.round(selected.altitude).toLocaleString()} ft`
+                    : "—"}
+                </span>
               </div>
-              <div>Status: {selected.on_ground ? "On Ground" : "In Air"}</div>
+              <div className="flex justify-between gap-4">
+                <span>Speed</span>
+                <span className="font-medium">
+                  {selected.velocity ? `${Math.round(selected.velocity)} kts` : "—"}
+                </span>
+              </div>
+              {dest && (
+                <div className="border-t border-gray-200 pt-1.5 mt-1.5">
+                  <div className="flex items-center gap-1 font-semibold text-blue-700">
+                    <span aria-hidden>→</span>
+                    {dest.iata || ""} {dest.name}
+                  </div>
+                  <div className="text-gray-500">
+                    {[dest.city, dest.country].filter(Boolean).join(", ") || "—"}
+                  </div>
+                  {selectedFlight?.latitude != null && distanceToDest != null && (
+                    <div className="flex justify-between gap-4 mt-0.5">
+                      <span>Remaining</span>
+                      <span className="font-medium">
+                        {Math.round(distanceToDest).toLocaleString()} km
+                        {formatEta(distanceToDest, selected.velocity)
+                          ? ` · ${formatEta(distanceToDest, selected.velocity)}`
+                          : ""}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </InfoWindow>
@@ -211,18 +400,23 @@ export default function FlightMap({
       }}
     >
       {userLocation && (
-        <Marker
+        <OverlayView
           position={{ lat: userLocation.lat, lng: userLocation.lng }}
-          icon={{
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 9,
-            fillColor: "#2563eb",
-            fillOpacity: 1,
-            strokeColor: "#ffffff",
-            strokeWeight: 3,
-          }}
-          title={userLocation.label || "Your location"}
-        />
+          mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+          getPixelPositionOffset={(w, h) => ({ x: -(w / 2), y: -(h / 2) })}
+        >
+          <div
+            title={userLocation.label || "Your location"}
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              background: "#2563eb",
+              border: "3px solid #ffffff",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.4)",
+            }}
+          />
+        </OverlayView>
       )}
       <FlightMarkers flights={flights} onSelect={() => {}} />
     </GoogleMap>

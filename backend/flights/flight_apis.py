@@ -152,6 +152,8 @@ class FlightRadarAPI:
         
         flights = []
         for i, callsign in enumerate(sample_callsigns):
+            origin = sample_origins[i % len(sample_origins)]
+            dest = sample_dests[i % len(sample_dests)]
             flights.append({
                 'icao24': f'a{random.randint(100000, 999999):x}',
                 'callsign': callsign,
@@ -164,6 +166,8 @@ class FlightRadarAPI:
                 'vertical_rate': random.randint(-100, 100),
                 'on_ground': False,
                 'last_contact': int(datetime.now().timestamp()),
+                'departure_airport': origin,
+                'arrival_airport': dest,
             })
         return flights
     
