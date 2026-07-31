@@ -42,7 +42,8 @@ class LiveFlightsTests(ApiTestBase):
         self.assertEqual(response.data[0]['icao24'], 'abc000')
         self.assertIn('is_stale', response.data[0])
 
-    def test_live_flights_rate_limited(self):
+    @patch('flights.views.OpenSkyAPI.get_live_flights', return_value=[])
+    def test_live_flights_rate_limited(self, _mock):
         for _ in range(15):
             self.client.get('/api/live-flights/')
         response = self.client.get('/api/live-flights/')
@@ -58,6 +59,7 @@ class LiveFlightsTests(ApiTestBase):
 
 
 class SearchAndDetailTests(ApiTestBase):
+    @patch('flights.views.OpenSkyAPI.get_flight_by_callsign', return_value=None)
     @patch('flights.views.AviationStackAPI.get_flights', return_value=[{
         'flight_number': 'VJ82',
         'airline': 'VietJet Air',
@@ -70,7 +72,7 @@ class SearchAndDetailTests(ApiTestBase):
         'speed': None,
         'heading': None,
     }])
-    def test_search_uses_aviationstack_when_not_live(self, _mock):
+    def test_search_uses_aviationstack_when_not_live(self, _mock_os, _mock_av):
         response = self.client.get('/api/search/', {'flight_number': 'VJ82'})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data[0]['flight_number'], 'VJ82')

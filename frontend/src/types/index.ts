@@ -11,6 +11,9 @@ export interface LiveFlight {
   on_ground: boolean
   last_contact: number | null
   is_stale?: boolean
+  sensor_count?: number | null
+  position_source?: number | null
+  position_jump?: boolean
   departure_airport?: string | null
   arrival_airport?: string | null
   departure_airport_info?: Airport | null
@@ -29,24 +32,32 @@ export interface LiveFlight {
 
 export interface FlightDetail {
   flight_number: string
+  flight_icao?: string
   airline: string
+  airline_iata?: string
+  airline_icao?: string
   departure_airport: string
+  departure_airport_icao?: string
   departure_airport_name: string
   departure_city: string
   departure_country: string
   departure_time_scheduled: string
+  departure_time_estimated?: string | null
   departure_time_actual: string
   departure_gate: string
   departure_terminal: string
   arrival_airport: string
+  arrival_airport_icao?: string
   arrival_airport_name: string
   arrival_city: string
   arrival_country: string
   arrival_time_scheduled: string
+  arrival_time_estimated?: string | null
   arrival_time_actual: string
   arrival_gate: string
   arrival_terminal: string
   status: string
+  status_state?: string
   latitude: number | null
   longitude: number | null
   altitude: number | null
@@ -56,6 +67,8 @@ export interface FlightDetail {
   flight_date: string
   icao24?: string | null
   is_stale?: boolean
+  sensor_count?: number | null
+  position_jump?: boolean
   departure_airport_info?: Airport | null
   arrival_airport_info?: Airport | null
   departure_delay?: number | null

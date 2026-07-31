@@ -3,25 +3,22 @@ import { Card, CardContent } from "./ui/card"
 import { Badge } from "./ui/badge"
 import { Plane, Clock, MapPin } from "lucide-react"
 import type { FlightDetail } from "../types"
+import { normalizeStatusState, statusStateMeta, delayVariation, formatUtcTime, formatLocalApprox } from "../lib/flight"
 
 interface FlightCardProps {
   flight: FlightDetail
 }
 
-const statusColors: Record<string, string> = {
-  scheduled: "bg-blue-100 text-blue-800",
-  active: "bg-green-100 text-green-800",
-  landed: "bg-gray-100 text-gray-800",
-  delayed: "bg-yellow-100 text-yellow-800",
-  cancelled: "bg-red-100 text-red-800",
-}
-
 export default function FlightCard({ flight }: FlightCardProps) {
+  const state = statusStateMeta(normalizeStatusState(flight.status_state || flight.status))
+  const depVariation = delayVariation(flight.departure_time_scheduled, flight.departure_time_actual || flight.departure_time_estimated)
+  const arrVariation = delayVariation(flight.arrival_time_scheduled, flight.arrival_time_actual || flight.arrival_time_estimated)
+
   const depTime = flight.departure_time_scheduled
-    ? new Date(flight.departure_time_scheduled).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+    ? formatLocalApprox(flight.departure_time_scheduled, flight.departure_airport_info?.longitude)
     : "—"
   const arrTime = flight.arrival_time_scheduled
-    ? new Date(flight.arrival_time_scheduled).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+    ? formatLocalApprox(flight.arrival_time_scheduled, flight.arrival_airport_info?.longitude)
     : "—"
 
   return (
@@ -32,10 +29,11 @@ export default function FlightCard({ flight }: FlightCardProps) {
             <div className="flex items-center gap-2">
               <Plane className="h-4 w-4 text-primary" />
               <span className="font-bold text-lg">{flight.flight_number}</span>
+              {flight.flight_icao && flight.flight_icao !== flight.flight_number && (
+                <span className="text-xs text-muted-foreground">{flight.flight_icao}</span>
+              )}
             </div>
-            <Badge className={statusColors[flight.status] || ""}>
-              {flight.status || "unknown"}
-            </Badge>
+            <Badge className={state.badge}>{state.label}</Badge>
           </div>
           <div className="flex items-center justify-between">
             <div className="text-center">
@@ -65,10 +63,25 @@ export default function FlightCard({ flight }: FlightCardProps) {
               </div>
             </div>
           </div>
+          {(depVariation || arrVariation) && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {depVariation && (
+                <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${depVariation.startsWith("+") ? "bg-red-100 text-red-700" : depVariation === "On time" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
+                  Dep {depVariation}
+                </span>
+              )}
+              {arrVariation && (
+                <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${arrVariation.startsWith("+") ? "bg-red-100 text-red-700" : arrVariation === "On time" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
+                  Arr {arrVariation}
+                </span>
+              )}
+            </div>
+          )}
           {flight.aircraft_type && (
             <div className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
               <MapPin className="h-3 w-3" />
               Aircraft: {flight.aircraft_type}
+              {flight.departure_time_scheduled && ` · ${formatUtcTime(flight.departure_time_scheduled)}`}
             </div>
           )}
         </CardContent>

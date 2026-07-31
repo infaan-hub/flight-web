@@ -39,6 +39,11 @@ function App() {
           <div className="container-custom text-center text-sm text-muted-foreground">
             <p>SkyTrack - Flight Information System | Powered by Django & React</p>
             <p className="text-xs mt-1">Data sourced from OpenSky Network & AviationStack APIs</p>
+            <p className="text-xs mt-1">
+              Statuses follow the standard flight lifecycle (Scheduled → Departed gate → In air → Landed → At
+              gate). Positions are crowdsourced ADS-B and may be estimated or missing over oceans and remote
+              regions.
+            </p>
           </div>
         </footer>
       </div>

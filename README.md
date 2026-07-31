@@ -40,6 +40,30 @@ OpenSky fallback order: authenticated OAuth2 token → anonymous → bundled sam
 All endpoints are rate-limited per client IP (in-memory sliding window) and
 results are cached to protect upstream quota.
 
+## Data conventions
+
+- **Flight states** follow the standard lifecycle vocabulary (OAG/ICAO-style):
+  `Scheduled → OutGate (departed gate) → InAir → Landed → InGate`, plus
+  `Canceled` and `Diverted`. Provider-specific strings are normalized to these
+  states (backend `canonical_status`, frontend `normalizeStatusState`).
+- **Delay** = actual (or estimated) time minus scheduled time. A difference
+  under **5 minutes** is displayed as "On time"; larger differences show as
+  `+N min` (late) or `Early N min`.
+- **Scheduled vs estimated vs actual**: every departure/arrival can carry all
+  three times. Estimated is the provider's current best prediction; when a
+  provider omits it, it is derived as scheduled + delay (minutes).
+- **Times** are stored/transmitted in ISO 8601 (UTC). The UI shows UTC always,
+  plus an *approximate* local time (≈) derived from the airport's longitude
+  (±1h, not official timezone data) so times are never shown without a label.
+- **Estimated positions**: OpenSky ADS-B is crowdsourced; positions are dimmed
+  and labeled "estimated" when the last contact is older than 60 s, and the
+  detail page flags implausible position jumps (>500 km between updates <5 min
+  apart) and low sensor counts.
+- **Routes**: actual flight paths (from `/tracks`) are drawn as solid lines;
+  planned routes are rendered as dashed great-circle arcs (spherical
+  interpolation, antimeridian-safe). The straight line on a flat map is *not*
+  the shortest path.
+
 ## Local development
 
 Backend:

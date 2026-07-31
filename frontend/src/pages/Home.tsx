@@ -147,6 +147,10 @@ export default function Home() {
             </Button>
           </Link>
         </div>
+        <p className="text-xs text-muted-foreground mb-3">
+          Positions come from crowdsourced ADS-B receivers and may be estimated or missing over oceans and remote
+          regions. Dimmed markers are estimated positions.
+        </p>
         <Suspense
           fallback={
             <div className="w-full h-[500px] rounded-lg border bg-muted animate-pulse" />

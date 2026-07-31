@@ -1,7 +1,8 @@
 ﻿import requests
 import logging
 import time
-from datetime import datetime, timedelta
+import math
+from datetime import datetime, timedelta, timezone
 from django.conf import settings
 from .throttling import cache_get, cache_set
 
@@ -12,6 +13,67 @@ logger = logging.getLogger(__name__)
 M_TO_FT = 3.28084
 MPS_TO_KTS = 1.943844
 MPS_TO_FTMIN = 196.8504
+
+# Canonical flight-state vocabulary (OAG/ICAO style). The app derives this
+# from provider-specific status strings and live position data.
+STATUS_STATE_MAP = {
+    'scheduled': 'Scheduled',
+    'delayed': 'Scheduled',
+    'active': 'InAir',
+    'landed': 'Landed',
+    'cancelled': 'Canceled',
+    'diverted': 'Diverted',
+    'incident': 'Diverted',
+    'unknown': 'Unknown',
+    '': 'Unknown',
+}
+
+def canonical_status(raw):
+    """Map a provider status string to the canonical flight-state vocabulary."""
+    return STATUS_STATE_MAP.get((raw or '').strip().lower(), 'Unknown')
+
+# Last seen positions per icao24, used to flag implausible position jumps
+# (receiver glitches, misassigned squawks). Kept tiny in memory.
+_last_positions = {}
+_MAX_POSITIONS = 2000
+JUMP_KM_THRESHOLD = 500.0
+
+def _haversine_km(lat1, lng1, lat2, lng2):
+    """Great-circle distance between two coordinates in kilometers."""
+    r = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlng = math.radians(lng2 - lng1)
+    a = (math.sin(dlat / 2) ** 2
+         + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2)
+    return 2 * r * math.asin(math.sqrt(a))
+
+def _is_position_jump(icao24, last_contact, lat, lng):
+    """Flag a position that moved > 500 km between two updates < 5 min apart."""
+    if last_contact is None or lat is None or lng is None:
+        return False
+    prev = _last_positions.get(icao24)
+    _last_positions[icao24] = {'t': last_contact, 'lat': lat, 'lng': lng}
+    if len(_last_positions) > _MAX_POSITIONS:
+        _last_positions.clear()
+    if not prev or prev.get('t') is None:
+        return False
+    age = last_contact - prev['t']
+    if age <= 0 or age > 300:
+        return False
+    return _haversine_km(prev['lat'], prev['lng'], lat, lng) > JUMP_KM_THRESHOLD
+
+def estimated_from_delay(scheduled, delay):
+    """Estimated time = scheduled + delay minutes, when the provider doesn't
+    supply an estimated value directly."""
+    if not scheduled or delay is None:
+        return None
+    try:
+        parsed = datetime.fromisoformat(scheduled.replace('Z', '+00:00'))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return (parsed + timedelta(minutes=delay)).isoformat()
+    except (ValueError, TypeError):
+        return None
 
 class OpenSkyTokenManager:
     """OAuth2 client-credentials token manager with automatic refresh (30-min expiry)."""
@@ -115,12 +177,14 @@ class OpenSkyAPI:
                     if not state:
                         continue
                     last_contact = state[4]
+                    lat = state[6]
+                    lng = state[5]
                     flights.append({
                         'icao24': state[0],
                         'callsign': state[1].strip() if state[1] else '',
                         'origin_country': state[2],
-                        'latitude': state[6],
-                        'longitude': state[5],
+                        'latitude': lat,
+                        'longitude': lng,
                         'altitude': state[7] * M_TO_FT if state[7] is not None else None,
                         'velocity': state[9] * MPS_TO_KTS if state[9] is not None else None,
                         'heading': state[10],
@@ -128,6 +192,9 @@ class OpenSkyAPI:
                         'on_ground': state[8],
                         'last_contact': last_contact,
                         'is_stale': bool(last_contact) and (now - last_contact) > 60,
+                        'sensor_count': len(state[12]) if len(state) > 12 and state[12] else None,
+                        'position_source': state[16] if len(state) > 16 else None,
+                        'position_jump': _is_position_jump(state[0], last_contact, lat, lng),
                         'category': state[17] if len(state) > 17 else None,
                     })
                 return flights
@@ -277,7 +344,7 @@ class AviationStackAPI:
                 'departure_city': None,
                 'departure_country': None,
                 'departure_time_scheduled': dep.get('scheduled', ''),
-                'departure_time_estimated': dep.get('estimated', ''),
+                'departure_time_estimated': dep.get('estimated') or estimated_from_delay(dep.get('scheduled'), dep.get('delay')),
                 'departure_time_actual': dep.get('actual', ''),
                 'departure_delay': dep.get('delay'),
                 'departure_gate': dep.get('gate', ''),
@@ -288,13 +355,14 @@ class AviationStackAPI:
                 'arrival_city': None,
                 'arrival_country': None,
                 'arrival_time_scheduled': arr.get('scheduled', ''),
-                'arrival_time_estimated': arr.get('estimated', ''),
+                'arrival_time_estimated': arr.get('estimated') or estimated_from_delay(arr.get('scheduled'), arr.get('delay')),
                 'arrival_time_actual': arr.get('actual', ''),
                 'arrival_baggage': arr.get('baggage'),
                 'arrival_delay': arr.get('delay'),
                 'arrival_gate': arr.get('gate', ''),
                 'arrival_terminal': arr.get('terminal', ''),
                 'status': f.get('flight_status', ''),
+                'status_state': canonical_status(f.get('flight_status', '')),
                 'latitude': live.get('latitude'),
                 'longitude': live.get('longitude'),
                 'altitude': live.get('altitude') * M_TO_FT if live.get('altitude') is not None else None,
@@ -346,6 +414,10 @@ class FlightRadarAPI:
                 'vertical_rate': random.randint(-100, 100),
                 'on_ground': False,
                 'last_contact': int(datetime.now().timestamp()),
+                'is_stale': False,
+                'sensor_count': random.randint(1, 8),
+                'position_source': 0,
+                'position_jump': False,
                 'departure_airport': origin,
                 'arrival_airport': dest,
             })
@@ -362,6 +434,7 @@ class FlightRadarAPI:
             'departure_city': random.choice(['New York', 'Los Angeles', 'Chicago', 'London']),
             'departure_country': random.choice(['United States', 'United Kingdom']),
             'departure_time_scheduled': (datetime.now() - timedelta(hours=2)).isoformat(),
+            'departure_time_estimated': (datetime.now() - timedelta(hours=1, minutes=55)).isoformat(),
             'departure_time_actual': (datetime.now() - timedelta(hours=1, minutes=55)).isoformat(),
             'departure_gate': f'{random.choice("ABCDEFG")}{random.randint(1, 30)}',
             'departure_terminal': str(random.randint(1, 5)),
@@ -370,10 +443,12 @@ class FlightRadarAPI:
             'arrival_city': random.choice(['San Francisco', 'Miami', 'Seattle', 'Boston']),
             'arrival_country': 'United States',
             'arrival_time_scheduled': (datetime.now() + timedelta(hours=3)).isoformat(),
+            'arrival_time_estimated': (datetime.now() + timedelta(hours=3, minutes=10)).isoformat(),
             'arrival_time_actual': None,
             'arrival_gate': None,
             'arrival_terminal': None,
             'status': random.choice(['scheduled', 'active', 'landed', 'delayed']),
+            'status_state': canonical_status(random.choice(['scheduled', 'active', 'landed', 'delayed'])),
             'latitude': random.uniform(25, 50),
             'longitude': random.uniform(-130, -70),
             'altitude': random.randint(30000, 40000),

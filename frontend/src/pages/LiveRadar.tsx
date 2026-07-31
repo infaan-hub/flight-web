@@ -140,6 +140,10 @@ export default function LiveRadar() {
         </div>
       ) : (
         <>
+          <p className="text-xs text-muted-foreground -mt-4 mb-3">
+            Positions come from crowdsourced ADS-B receivers; coverage can be missing over oceans and remote
+            regions, where markers are dimmed (estimated). "Updated Xs ago" shows data freshness.
+          </p>
           <Card>
             <CardContent className="p-0 overflow-hidden rounded-lg">
               <Suspense

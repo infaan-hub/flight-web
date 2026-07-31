@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from .models import Flight, Airport
 from .serializers import FlightSerializer, AirportSerializer, LiveFlightSerializer
-from .flight_apis import OpenSkyAPI, AviationStackAPI, FlightRadarAPI
+from .flight_apis import OpenSkyAPI, AviationStackAPI, FlightRadarAPI, canonical_status, estimated_from_delay
 from .throttling import is_rate_limited, client_ip, cache_get, cache_set
 
 logger = logging.getLogger(__name__)
@@ -61,6 +61,27 @@ def _enrich_airports(flights):
             code = f.get(code_key)
             f[info_key] = _airport_info(airports.get(code)) if code else None
     return flights
+
+def _derive_status_state(flight, live=None):
+    """Canonical flight-state from provider status + live position data.
+
+    Live position refines the state: airborne => InAir; on the ground near
+    the arrival airport => Landed, otherwise OutGate.
+    """
+    state = flight.get('status_state') or canonical_status(flight.get('status', ''))
+    if not live:
+        return state
+    lat = flight.get('latitude')
+    lng = flight.get('longitude')
+    if lat is None or lng is None:
+        return state
+    arrival = flight.get('arrival_airport_info')
+    near_arrival = False
+    if arrival and arrival.get('latitude') is not None:
+        near_arrival = _haversine_km(lat, lng, arrival['latitude'], arrival['longitude']) <= 60
+    if not flight.get('on_ground'):
+        return 'InAir'
+    return 'Landed' if near_arrival else 'OutGate'
 
 def _haversine_km(lat1, lng1, lat2, lng2):
     """Great-circle distance between two coordinates in kilometers."""
@@ -109,6 +130,7 @@ def _generate_region_flights(lat, lng, radius_km, count=20):
             'departure_city': dep.city,
             'departure_country': dep.country,
             'departure_time_scheduled': dep_time.isoformat(),
+            'departure_time_estimated': dep_time.isoformat(),
             'departure_time_actual': dep_time.isoformat(),
             'departure_gate': f'{random.choice("ABCDEFG")}{random.randint(1, 30)}',
             'departure_terminal': str(random.randint(1, 5)),
@@ -117,10 +139,12 @@ def _generate_region_flights(lat, lng, radius_km, count=20):
             'arrival_city': arr.city,
             'arrival_country': arr.country,
             'arrival_time_scheduled': arr_time.isoformat(),
+            'arrival_time_estimated': arr_time.isoformat(),
             'arrival_time_actual': None,
             'arrival_gate': None,
             'arrival_terminal': None,
             'status': random.choice(statuses),
+            'status_state': canonical_status(random.choice(statuses)),
             'latitude': None,
             'longitude': None,
             'altitude': None,
@@ -211,6 +235,7 @@ def search_flights(request):
                 live_result = dict(live)
                 live_result['flight_number'] = live_result.get('callsign', '') or flight_number
                 live_result['status'] = 'active'
+                live_result['status_state'] = 'InAir' if not live.get('on_ground') else 'OutGate'
                 results = [live_result]
             else:
                 results = AviationStackAPI.get_flights(flight_number=flight_number, date=date)
@@ -274,9 +299,20 @@ def flight_detail(request, flight_number):
             'heading': live_data.get('heading'),
             'icao24': live_data.get('icao24'),
             'is_stale': live_data.get('is_stale'),
+            'position_jump': live_data.get('position_jump'),
+            'sensor_count': live_data.get('sensor_count'),
         })
         result['status'] = 'active'
         result['flight_number'] = result.get('flight_number') or live_data.get('callsign', '')
+
+    # Canonical state + estimated times (provider may omit estimates)
+    _enrich_airports([result])
+    result['status_state'] = _derive_status_state(result, live=live_data)
+    for key, delay_key in (('departure_time_estimated', 'departure_delay'),
+                           ('arrival_time_estimated', 'arrival_delay')):
+        if not result.get(key):
+            result[key] = estimated_from_delay(
+                result.get(key.replace('_estimated', '_scheduled')), result.get(delay_key))
 
     # Check database
     try:
@@ -286,8 +322,6 @@ def flight_detail(request, flight_number):
             result.update({k: v for k, v in db_data.items() if v is not None})
     except:
         pass
-
-    _enrich_airports([result])
 
     if not result:
         return Response({'error': 'Flight not found'}, status=status.HTTP_404_NOT_FOUND)
