@@ -167,6 +167,8 @@ AVIATIONSTACK_BASE_URL = 'https://api.aviationstack.com/v1'
 
 # OpenSky Network
 OPENSKY_BASE_URL = 'https://opensky-network.org/api'
+OPENSKY_CLIENT_ID = os.environ.get('OPENSKY_CLIENT_ID', '')
+OPENSKY_CLIENT_SECRET = os.environ.get('OPENSKY_CLIENT_SECRET', '')
 
 # Security for production
 if not DEBUG:

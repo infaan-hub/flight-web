@@ -22,6 +22,10 @@ services:
         value: "postgresql://neondb_owner:npg_1Ia9ywLgpDnO@ep-divine-grass-aya27i7w-pooler.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
       - key: AVIATIONSTACK_API_KEY
         sync: false
+      - key: OPENSKY_CLIENT_ID
+        sync: false
+      - key: OPENSKY_CLIENT_SECRET
+        sync: false
       - key: PYTHON_VERSION
         value: "3.12.4"
 

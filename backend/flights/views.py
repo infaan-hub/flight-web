@@ -156,13 +156,20 @@ def search_flights(request):
     arrival = request.GET.get('arrival', '')
     date = request.GET.get('date', '')
     
-    # Try AviationStack first
+    # Try OpenSky first: flights already visible live are NOT re-fetched from AviationStack
     results = []
     if flight_number:
-        results = AviationStackAPI.get_flights(flight_number=flight_number, date=date)
+        live = OpenSkyAPI.get_flight_by_callsign(flight_number)
+        if live:
+            live_result = dict(live)
+            live_result['flight_number'] = live_result.get('callsign', '') or flight_number
+            live_result['status'] = 'active'
+            results = [live_result]
+        else:
+            results = AviationStackAPI.get_flights(flight_number=flight_number, date=date)
     
     if not results:
-        results = FlightRadarAPI.get_sample_live_flights()
+        results = _generate_region_flights(-6.2222, 39.2249, 2000, count=10)
     
     # Also check our database
     db_flights = Flight.objects.all()
@@ -189,14 +196,16 @@ def flight_detail(request, flight_number):
     # Try OpenSky for live position
     live_data = OpenSkyAPI.get_flight_by_callsign(flight_number)
     
-    # Try AviationStack for detailed info
-    detail_data = AviationStackAPI.get_flights(flight_number=flight_number)
-    
-    result = {}
-    if detail_data:
-        result = detail_data[0]
-    elif live_data:
+    # AviationStack is only queried for flights NOT visible on OpenSky
+    # (saves free-tier quota; OpenSky provides live position, AviationStack provides schedules)
+    if live_data:
         result = live_data
+    else:
+        detail_data = AviationStackAPI.get_flights(flight_number=flight_number)
+        if detail_data:
+            result = detail_data[0]
+        else:
+            result = FlightRadarAPI.get_sample_flight_detail(flight_number)
     
     # If live data has position info, merge it
     if live_data and result:
@@ -207,10 +216,8 @@ def flight_detail(request, flight_number):
             'speed': live_data.get('velocity'),
             'heading': live_data.get('heading'),
         })
-    
-    # Fallback to sample data
-    if not result:
-        result = FlightRadarAPI.get_sample_flight_detail(flight_number)
+        result['status'] = 'active'
+        result['flight_number'] = result.get('flight_number') or live_data.get('callsign', '')
     
     # Check database
     try:

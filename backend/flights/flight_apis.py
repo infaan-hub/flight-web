@@ -5,44 +5,122 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+# Unit conversions: OpenSky returns altitude in meters, velocity in m/s,
+# vertical rate in m/s. The app displays ft / kts / ft-min.
+M_TO_FT = 3.28084
+MPS_TO_KTS = 1.943844
+MPS_TO_FTMIN = 196.8504
+
+class OpenSkyTokenManager:
+    """OAuth2 client-credentials token manager with automatic refresh (30-min expiry)."""
+
+    TOKEN_URL = 'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token'
+    TOKEN_REFRESH_MARGIN = 30
+
+    def __init__(self):
+        self.token = None
+        self.expires_at = None
+
+    def is_configured(self):
+        return bool(getattr(settings, 'OPENSKY_CLIENT_ID', '') and getattr(settings, 'OPENSKY_CLIENT_SECRET', ''))
+
+    def get_token(self):
+        """Return a valid access token, refreshing automatically if needed."""
+        if self.token and self.expires_at and datetime.now() < self.expires_at:
+            return self.token
+        return self._refresh()
+
+    def _refresh(self):
+        """Fetch a new access token. Returns None on failure (callers fall back to anonymous)."""
+        try:
+            response = requests.post(
+                self.TOKEN_URL,
+                data={
+                    'grant_type': 'client_credentials',
+                    'client_id': settings.OPENSKY_CLIENT_ID,
+                    'client_secret': settings.OPENSKY_CLIENT_SECRET,
+                },
+                timeout=10,
+            )
+            response.raise_for_status()
+            data = response.json()
+            self.token = data['access_token']
+            expires_in = data.get('expires_in', 1800)
+            self.expires_at = datetime.now() + timedelta(seconds=expires_in - self.TOKEN_REFRESH_MARGIN)
+            return self.token
+        except Exception as e:
+            logger.error(f"OpenSky token refresh failed: {e}")
+            self.token = None
+            self.expires_at = None
+            return None
+
+    def headers(self):
+        """Request headers with a valid Bearer token, or {} when unauthenticated."""
+        if not self.is_configured():
+            return {}
+        token = self.get_token()
+        return {'Authorization': f'Bearer {token}'} if token else {}
+
+
+open_sky_tokens = OpenSkyTokenManager()
+
 class OpenSkyAPI:
-    """Integration with OpenSky Network API (free, no key needed for anonymous access)"""
+    """Integration with OpenSky Network API (OAuth2 bearer auth, anonymous fallback)"""
     
     BASE_URL = 'https://opensky-network.org/api'
+    
+    @classmethod
+    def _fetch_states(cls, params):
+        """GET /states/all with bearer auth; retries once after a forced token refresh on 401."""
+        url = f'{cls.BASE_URL}/states/all'
+        headers = open_sky_tokens.headers()
+        response = requests.get(url, params=params, headers=headers, timeout=10)
+        if response.status_code == 401:
+            # Token expired / invalid: force refresh and retry once
+            open_sky_tokens.token = None
+            open_sky_tokens.expires_at = None
+            headers = open_sky_tokens.headers()
+            if headers:
+                response = requests.get(url, params=params, headers=headers, timeout=10)
+        return response
     
     @classmethod
     def get_live_flights(cls, bounds=None):
         """Get all live flights from OpenSky. bounds = {lamin, lomin, lamax, lomax}"""
         try:
-            url = f'{cls.BASE_URL}/states/all'
-            if bounds:
-                params = {
-                    'lamin': bounds.get('lamin', -90),
-                    'lomin': bounds.get('lomin', -180),
-                    'lamax': bounds.get('lamax', 90),
-                    'lomax': bounds.get('lomax', 180),
-                }
-            else:
-                params = {'lamin': -90, 'lomin': -180, 'lamax': 90, 'lomax': 180}
-            response = requests.get(url, params=params, timeout=10)
+            params = {
+                'lamin': bounds.get('lamin', -90) if bounds else -90,
+                'lomin': bounds.get('lomin', -180) if bounds else -180,
+                'lamax': bounds.get('lamax', 90) if bounds else 90,
+                'lomax': bounds.get('lomax', 180) if bounds else 180,
+            }
+            response = cls._fetch_states(params)
+            if response.status_code == 429:
+                logger.warning("OpenSky rate limit exceeded, retry after %s",
+                               response.headers.get('X-Rate-Limit-Retry-After-Seconds', '?'))
+                return []
             if response.status_code == 200:
                 data = response.json()
                 flights = []
-                for state in data.get('states', [])[:100]:
+                for state in (data.get('states') or [])[:100]:
+                    if not state:
+                        continue
                     flights.append({
                         'icao24': state[0],
                         'callsign': state[1].strip() if state[1] else '',
                         'origin_country': state[2],
                         'latitude': state[6],
                         'longitude': state[5],
-                        'altitude': state[7],
-                        'velocity': state[9],
+                        'altitude': state[7] * M_TO_FT if state[7] is not None else None,
+                        'velocity': state[9] * MPS_TO_KTS if state[9] is not None else None,
                         'heading': state[10],
-                        'vertical_rate': state[11],
+                        'vertical_rate': state[11] * MPS_TO_FTMIN if state[11] is not None else None,
                         'on_ground': state[8],
                         'last_contact': state[4],
+                        'category': state[17] if len(state) > 17 else None,
                     })
                 return flights
+            logger.warning("OpenSky states request failed: HTTP %s", response.status_code)
             return []
         except Exception as e:
             logger.error(f"OpenSky API error: {e}")
@@ -135,9 +213,9 @@ class AviationStackAPI:
                 'status': f.get('flight_status', ''),
                 'latitude': live.get('latitude'),
                 'longitude': live.get('longitude'),
-                'altitude': live.get('altitude'),
-                'speed': live.get('speed_horizontal'),
-                'vertical_speed': live.get('speed_vertical'),
+                'altitude': live.get('altitude') * M_TO_FT if live.get('altitude') is not None else None,
+                'speed': live.get('speed_horizontal') * MPS_TO_KTS if live.get('speed_horizontal') is not None else None,
+                'vertical_speed': live.get('speed_vertical') * MPS_TO_FTMIN if live.get('speed_vertical') is not None else None,
                 'heading': live.get('direction'),
                 'on_ground': live.get('is_ground'),
                 'aircraft_type': aircraft.get('iata', '') or '',
