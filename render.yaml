@@ -45,5 +45,5 @@ services:
     envVars:
       - key: VITE_API_URL
         value: "https://flight-web-t6ia.onrender.com/api"
-      - key: VITE_GOOGLE_MAPS_API_KEY
-        value: "AIzaSyDlk8XQm_SXENen8sUDD4ssZ5nlnfIIeC4"
+      - key: VITE_MAPBOX_TOKEN
+        sync: false
