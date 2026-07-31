@@ -1,0 +1,88 @@
+import { useState, useEffect } from "react"
+import { Card, CardContent } from "../components/ui/card"
+import { Input } from "../components/ui/input"
+import FlightCard from "../components/FlightCard"
+import { getTodaysFlights } from "../services/api"
+import type { FlightDetail } from "../types"
+import { Loader2, Search } from "lucide-react"
+
+export default function AllFlights() {
+  const [flights, setFlights] = useState<FlightDetail[]>([])
+  const [filtered, setFiltered] = useState<FlightDetail[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState("")
+
+  useEffect(() => {
+    getTodaysFlights()
+      .then((data) => {
+        setFlights(data)
+        setFiltered(data)
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => {
+    if (!search.trim()) {
+      setFiltered(flights)
+      return
+    }
+    const q = search.toLowerCase()
+    setFiltered(
+      flights.filter(
+        (f) =>
+          f.flight_number.toLowerCase().includes(q) ||
+          f.airline?.toLowerCase().includes(q) ||
+          f.departure_airport?.toLowerCase().includes(q) ||
+          f.arrival_airport?.toLowerCase().includes(q) ||
+          f.departure_city?.toLowerCase().includes(q) ||
+          f.arrival_city?.toLowerCase().includes(q)
+      )
+    )
+  }, [search, flights])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="container-custom py-8 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Today's Flights</h1>
+          <p className="text-muted-foreground mt-1">
+            {flights.length} flights scheduled for today
+          </p>
+        </div>
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Filter flights..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filtered.map((flight, idx) => (
+          <FlightCard key={`${flight.flight_number}-${idx}`} flight={flight} />
+        ))}
+      </div>
+
+      {filtered.length === 0 && (
+        <Card>
+          <CardContent className="p-12 text-center text-muted-foreground">
+            <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>No flights match your search.</p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
