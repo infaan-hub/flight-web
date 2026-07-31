@@ -84,6 +84,16 @@ export default function FlightDetail() {
         arrival_airport: flight.arrival_airport,
         departure_airport_info: flight.departure_airport_info,
         arrival_airport_info: flight.arrival_airport_info,
+        airline: flight.airline || null,
+        aircraft_type: flight.aircraft_type || null,
+        departure_terminal: flight.departure_terminal || null,
+        departure_gate: flight.departure_gate || null,
+        arrival_terminal: flight.arrival_terminal || null,
+        arrival_gate: flight.arrival_gate || null,
+        departure_delay: flight.departure_delay ?? null,
+        arrival_delay: flight.arrival_delay ?? null,
+        departure_time_scheduled: flight.departure_time_scheduled || null,
+        arrival_time_scheduled: flight.arrival_time_scheduled || null,
       }]
     : []
 

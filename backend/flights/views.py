@@ -249,6 +249,10 @@ def todays_flights(request):
     flights_qs = flights_qs[:50]
 
     if not flights_qs:
+        api_flights = AviationStackAPI.get_flights()[:12]
+        if api_flights:
+            _enrich_airports(api_flights)
+            return Response(api_flights)
         generated = _generate_region_flights(lat, lng, radius_km, count=20)
         _enrich_airports(generated)
         return Response(generated)

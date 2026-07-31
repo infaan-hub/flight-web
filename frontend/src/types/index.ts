@@ -14,6 +14,16 @@ export interface LiveFlight {
   arrival_airport?: string | null
   departure_airport_info?: Airport | null
   arrival_airport_info?: Airport | null
+  airline?: string | null
+  aircraft_type?: string | null
+  departure_terminal?: string | null
+  departure_gate?: string | null
+  arrival_terminal?: string | null
+  arrival_gate?: string | null
+  departure_delay?: number | null
+  arrival_delay?: number | null
+  departure_time_scheduled?: string | null
+  arrival_time_scheduled?: string | null
 }
 
 export interface FlightDetail {
@@ -45,6 +55,10 @@ export interface FlightDetail {
   flight_date: string
   departure_airport_info?: Airport | null
   arrival_airport_info?: Airport | null
+  departure_delay?: number | null
+  arrival_delay?: number | null
+  aircraft_registration?: string | null
+  arrival_baggage?: string | null
 }
 
 export interface FlightStats {

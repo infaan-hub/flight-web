@@ -239,18 +239,30 @@ function FlightMarkers({
             disableAutoPan: false,
           }}
         >
-          <div className="p-1 min-w-[180px]">
+          <div className="p-1 min-w-[190px]">
             <div className="flex items-center justify-between gap-3">
-              <div className="font-bold text-sm">{selected.callsign || "Unknown Flight"}</div>
-              <span
-                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                  selected.on_ground
-                    ? "bg-gray-100 text-gray-600"
-                    : "bg-green-100 text-green-700"
-                }`}
-              >
-                {selected.on_ground ? "On Ground" : "In Air"}
-              </span>
+              <div>
+                <div className="font-bold text-sm">{selected.callsign || "Unknown Flight"}</div>
+                {selected.airline && (
+                  <div className="text-[11px] text-muted-foreground">{selected.airline}</div>
+                )}
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                <span
+                  className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                    selected.on_ground
+                      ? "bg-gray-100 text-gray-600"
+                      : "bg-green-100 text-green-700"
+                  }`}
+                >
+                  {selected.on_ground ? "On Ground" : "In Air"}
+                </span>
+                {selected.arrival_delay != null && selected.arrival_delay > 0 && (
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">
+                    Delayed {selected.arrival_delay}m
+                  </span>
+                )}
+              </div>
             </div>
             <div className="text-xs text-gray-600 space-y-1 mt-1.5">
               <div className="flex justify-between gap-4">
@@ -271,6 +283,30 @@ function FlightMarkers({
                   {selected.velocity ? `${Math.round(selected.velocity)} kts` : "—"}
                 </span>
               </div>
+              {selected.aircraft_type && (
+                <div className="flex justify-between gap-4">
+                  <span>Aircraft</span>
+                  <span className="font-medium">{selected.aircraft_type}</span>
+                </div>
+              )}
+              {selected.departure_airport &&
+                selected.departure_airport !== selected.arrival_airport && (
+                  <div className="flex justify-between gap-4">
+                    <span>Departed</span>
+                    <span className="font-medium">
+                      {selected.departure_airport}
+                      {selected.departure_time_scheduled
+                        ? ` · ${new Date(selected.departure_time_scheduled).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}`
+                        : ""}
+                      {selected.departure_delay != null && selected.departure_delay > 0
+                        ? ` (+${selected.departure_delay}m)`
+                        : ""}
+                    </span>
+                  </div>
+                )}
               {dest && (
                 <div className="border-t border-gray-200 pt-1.5 mt-1.5">
                   <div className="flex items-center gap-1 font-semibold text-blue-700">
@@ -280,6 +316,21 @@ function FlightMarkers({
                   <div className="text-gray-500">
                     {[dest.city, dest.country].filter(Boolean).join(", ") || "—"}
                   </div>
+                  {(selected.arrival_terminal || selected.arrival_gate) && (
+                    <div className="text-gray-500">
+                      Terminal {selected.arrival_terminal || "—"}
+                      {selected.arrival_gate ? ` · Gate ${selected.arrival_gate}` : ""}
+                    </div>
+                  )}
+                  {selected.arrival_time_scheduled && (
+                    <div className="text-gray-500">
+                      Arrives{" "}
+                      {new Date(selected.arrival_time_scheduled).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
+                  )}
                   {selectedFlight?.latitude != null && distanceToDest != null && (
                     <div className="flex justify-between gap-4 mt-0.5">
                       <span>Remaining</span>
