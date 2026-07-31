@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense, lazy } from "react"
 import { useParams, Link } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
 import { Separator } from "../components/ui/separator"
-import FlightMap from "../components/FlightMap"
+const FlightMap = lazy(() => import("../components/FlightMap"))
 import { getFlightDetail, getFlightTrack } from "../services/api"
 import type { FlightDetail as FlightDetailType, LiveFlight, FlightTrack } from "../types"
 import {
@@ -172,7 +172,13 @@ export default function FlightDetail() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <FlightMap flights={liveFlightData} center={[flight.latitude || 30, flight.longitude || 0]} zoom={6} />
+            <Suspense
+              fallback={
+                <div className="w-full h-[500px] rounded-lg border bg-muted animate-pulse" />
+              }
+            >
+              <FlightMap flights={liveFlightData} center={[flight.latitude || 30, flight.longitude || 0]} zoom={6} />
+            </Suspense>
           </CardContent>
         </Card>
       )}

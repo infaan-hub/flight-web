@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, Suspense, lazy } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
 import { Input } from "../components/ui/input"
-import FlightMap from "../components/FlightMap"
+const FlightMap = lazy(() => import("../components/FlightMap"))
 import type { MapBounds } from "../services/api"
 import { useLiveFlights } from "../hooks/useLiveFlights"
 import { getUserLocation, getDefaultLocation, type LocationInfo } from "../lib/geo"
@@ -142,14 +142,20 @@ export default function LiveRadar() {
         <>
           <Card>
             <CardContent className="p-0 overflow-hidden rounded-lg">
-              <FlightMap
-                flights={filtered}
-                center={[location.lat, location.lng]}
-                zoom={location.isZanzibar ? 9 : 10}
-                onBoundsChange={handleBoundsChange}
-                userLocation={{ lat: location.lat, lng: location.lng, label: location.label }}
-                focusFlight={focusFlight}
-              />
+              <Suspense
+                fallback={
+                  <div className="w-full h-[500px] bg-muted animate-pulse" />
+                }
+              >
+                <FlightMap
+                  flights={filtered}
+                  center={[location.lat, location.lng]}
+                  zoom={location.isZanzibar ? 9 : 10}
+                  onBoundsChange={handleBoundsChange}
+                  userLocation={{ lat: location.lat, lng: location.lng, label: location.label }}
+                  focusFlight={focusFlight}
+                />
+              </Suspense>
             </CardContent>
           </Card>
 

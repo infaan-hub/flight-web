@@ -10,6 +10,7 @@ import math
 import random
 import time
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 from .models import Flight, Airport
 from .serializers import FlightSerializer, AirportSerializer, LiveFlightSerializer
@@ -146,9 +147,12 @@ def live_flights(request):
 
     flights = OpenSkyAPI.get_live_flights(bounds=bounds)
 
-    # If too few flights in the area, expand the search area progressively
+    # If too few flights in the area, expand the search area progressively.
+    # Expansions run in parallel so a quiet region never causes 3 sequential
+    # (up to 30s) upstream calls.
     if bounds and len(flights) < 5:
         expanded = bounds
+        variants = []
         for _ in range(3):
             lat_mid = (expanded['lamin'] + expanded['lamax']) / 2
             lng_mid = (expanded['lomin'] + expanded['lomax']) / 2
@@ -160,9 +164,15 @@ def live_flights(request):
                 'lamax': min(90, lat_mid + lat_span),
                 'lomax': min(180, lng_mid + lng_span),
             }
-            flights = OpenSkyAPI.get_live_flights(bounds=expanded)
-            if len(flights) >= 5:
-                break
+            variants.append(expanded)
+        if variants:
+            with ThreadPoolExecutor(max_workers=len(variants)) as executor:
+                results = list(executor.map(
+                    lambda b: OpenSkyAPI.get_live_flights(bounds=b), variants))
+            for r in results:
+                if len(r) >= 5:
+                    flights = r
+                    break
 
     # Fallback to realistic sample data within the requested area
     if not flights or len(flights) < 5:

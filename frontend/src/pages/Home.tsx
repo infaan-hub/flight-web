@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense, lazy } from "react"
 import { Link } from "react-router-dom"
 import { Card, CardContent } from "../components/ui/card"
 import { Button } from "../components/ui/button"
-import FlightMap from "../components/FlightMap"
+const FlightMap = lazy(() => import("../components/FlightMap"))
 import FlightCard from "../components/FlightCard"
 import { getLiveFlights, getTodaysFlights, getFlightStats } from "../services/api"
 import { getUserLocation, getDefaultLocation, type LocationInfo } from "../lib/geo"
@@ -109,12 +109,18 @@ export default function Home() {
             </Button>
           </Link>
         </div>
-        <FlightMap
-          flights={liveFlights}
-          center={[location.lat, location.lng]}
-          zoom={location.isZanzibar ? 9 : 10}
-          userLocation={{ lat: location.lat, lng: location.lng, label: location.label }}
-        />
+        <Suspense
+          fallback={
+            <div className="w-full h-[500px] rounded-lg border bg-muted animate-pulse" />
+          }
+        >
+          <FlightMap
+            flights={liveFlights}
+            center={[location.lat, location.lng]}
+            zoom={location.isZanzibar ? 9 : 10}
+            userLocation={{ lat: location.lat, lng: location.lng, label: location.label }}
+          />
+        </Suspense>
       </section>
 
       <section>

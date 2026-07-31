@@ -1,4 +1,4 @@
-import requests
+﻿import requests
 import logging
 import time
 from datetime import datetime, timedelta
@@ -42,7 +42,7 @@ class OpenSkyTokenManager:
                     'client_id': settings.OPENSKY_CLIENT_ID,
                     'client_secret': settings.OPENSKY_CLIENT_SECRET,
                 },
-                timeout=10,
+                timeout=6,
             )
             response.raise_for_status()
             data = response.json()
@@ -82,14 +82,14 @@ class OpenSkyAPI:
         """GET /states/all with bearer auth; retries once after a forced token refresh on 401."""
         url = f'{cls.BASE_URL}/states/all'
         headers = open_sky_tokens.headers()
-        response = requests.get(url, params=params, headers=headers, timeout=10)
+        response = requests.get(url, params=params, headers=headers, timeout=6)
         if response.status_code == 401:
             # Token expired / invalid: force refresh and retry once
             open_sky_tokens.token = None
             open_sky_tokens.expires_at = None
             headers = open_sky_tokens.headers()
             if headers:
-                response = requests.get(url, params=params, headers=headers, timeout=10)
+                response = requests.get(url, params=params, headers=headers, timeout=6)
         return response
     
     @classmethod
@@ -162,13 +162,13 @@ class OpenSkyAPI:
         try:
             params = {'time': time} if time else None
             url = f'{cls.BASE_URL}/tracks/{icao24}'
-            response = requests.get(url, params=params, headers=open_sky_tokens.headers(), timeout=15)
+            response = requests.get(url, params=params, headers=open_sky_tokens.headers(), timeout=8)
             if response.status_code == 401:
                 open_sky_tokens.token = None
                 open_sky_tokens.expires_at = None
                 headers = open_sky_tokens.headers()
                 if headers:
-                    response = requests.get(url, params=params, headers=headers, timeout=15)
+                    response = requests.get(url, params=params, headers=headers, timeout=8)
             if response.status_code != 200:
                 logger.warning("OpenSky track request failed: HTTP %s", response.status_code)
                 return None
@@ -226,7 +226,7 @@ class AviationStackAPI:
             response = requests.get(
                 f'{cls.BASE_URL}/flights',
                 params={**params, 'access_key': api_key, 'limit': params.get('limit', 100)},
-                timeout=15,
+                timeout=8,
             )
             if response.status_code == 200:
                 return cls._format_flights(response.json().get('data', []))
@@ -382,3 +382,4 @@ class FlightRadarAPI:
             'aircraft_type': random.choice(['B738', 'A320', 'B77W', 'A388', 'B789']),
             'flight_date': datetime.now().strftime('%Y-%m-%d'),
         }
+
