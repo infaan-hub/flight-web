@@ -1,12 +1,21 @@
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Input } from "../components/ui/input"
 import { Button } from "../components/ui/button"
 import { Select } from "../components/ui/select"
+import { Badge } from "../components/ui/badge"
 import FlightCard from "../components/FlightCard"
-import { searchFlights } from "../services/api"
-import type { FlightDetail } from "../types"
-import { Search, Filter, Loader2 } from "lucide-react"
+import { searchFlights, getAirports, getAirportBoard, type BoardDirection } from "../services/api"
+import type { FlightDetail, Airport } from "../types"
+import { Search, Filter, Loader2, PlaneLanding, PlaneTakeoff } from "lucide-react"
+
+const statusColor: Record<string, string> = {
+  scheduled: "bg-blue-100 text-blue-800",
+  active: "bg-green-100 text-green-800",
+  landed: "bg-gray-100 text-gray-800",
+  delayed: "bg-yellow-100 text-yellow-800",
+  cancelled: "bg-red-100 text-red-800",
+}
 
 export default function FlightSearch() {
   const [flightNumber, setFlightNumber] = useState("")
@@ -16,6 +25,19 @@ export default function FlightSearch() {
   const [results, setResults] = useState<FlightDetail[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
+
+  const [airports, setAirports] = useState<Airport[]>([])
+  const [boardAirport, setBoardAirport] = useState("")
+  const [boardDirection, setBoardDirection] = useState<BoardDirection>("departures")
+  const [boardFlights, setBoardFlights] = useState<FlightDetail[]>([])
+  const [boardLoading, setBoardLoading] = useState(false)
+  const [boardSearched, setBoardSearched] = useState(false)
+
+  useEffect(() => {
+    getAirports()
+      .then(setAirports)
+      .catch(() => setAirports([]))
+  }, [])
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,6 +58,24 @@ export default function FlightSearch() {
       setLoading(false)
     }
   }
+
+  const handleBoard = useCallback(
+    async (airport: string, direction: BoardDirection) => {
+      if (!airport) return
+      setBoardLoading(true)
+      setBoardSearched(true)
+      try {
+        const data = await getAirportBoard(airport, direction)
+        setBoardFlights(data)
+      } catch (err) {
+        console.error(err)
+        setBoardFlights([])
+      } finally {
+        setBoardLoading(false)
+      }
+    },
+    []
+  )
 
   return (
     <div className="container-custom py-8 space-y-8">
@@ -111,13 +151,139 @@ export default function FlightSearch() {
             </Card>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {results.map((flight) => (
-                <FlightCard key={flight.flight_number + Math.random()} flight={flight} />
+              {results.map((flight, idx) => (
+                <FlightCard
+                  key={`${flight.flight_number}-${flight.flight_date || ""}-${idx}`}
+                  flight={flight}
+                />
               ))}
             </div>
           )}
         </div>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5 text-primary" />
+            Airport Board
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="space-y-2 flex-1">
+              <label className="text-sm font-medium">Airport</label>
+              <Select
+                value={boardAirport}
+                onChange={(e) => setBoardAirport(e.target.value)}
+                options={[
+                  { value: "", label: "Select an airport..." },
+                  ...airports.map((a) => ({
+                    value: a.iata,
+                    label: `${a.iata} — ${a.name}, ${a.city}`,
+                  })),
+                ]}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Direction</label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={boardDirection === "departures" ? "default" : "outline"}
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => {
+                    setBoardDirection("departures")
+                    if (boardAirport) handleBoard(boardAirport, "departures")
+                  }}
+                >
+                  <PlaneTakeoff className="h-4 w-4" /> Departures
+                </Button>
+                <Button
+                  type="button"
+                  variant={boardDirection === "arrivals" ? "default" : "outline"}
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => {
+                    setBoardDirection("arrivals")
+                    if (boardAirport) handleBoard(boardAirport, "arrivals")
+                  }}
+                >
+                  <PlaneLanding className="h-4 w-4" /> Arrivals
+                </Button>
+              </div>
+            </div>
+            <div className="flex items-end">
+              <Button
+                type="button"
+                disabled={!boardAirport || boardLoading}
+                className="gap-2"
+                onClick={() => handleBoard(boardAirport, boardDirection)}
+              >
+                {boardLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                Load board
+              </Button>
+            </div>
+          </div>
+
+          {boardLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : boardSearched ? (
+            boardFlights.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                No {boardDirection} found for this airport.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2 px-3 font-medium">Flight</th>
+                      <th className="text-left py-2 px-3 font-medium">Airline</th>
+                      <th className="text-left py-2 px-3 font-medium">
+                        {boardDirection === "arrivals" ? "From" : "To"}
+                      </th>
+                      <th className="text-left py-2 px-3 font-medium">Scheduled</th>
+                      <th className="text-center py-2 px-3 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {boardFlights.map((f, idx) => (
+                      <tr key={`${f.flight_number}-${f.arrival_time_scheduled}-${idx}`} className="border-b last:border-0 hover:bg-muted/50">
+                        <td className="py-2 px-3 font-medium">
+                          <a href={`/flights/${f.flight_number}`} className="text-primary hover:underline">
+                            {f.flight_number}
+                          </a>
+                        </td>
+                        <td className="py-2 px-3">{f.airline || "—"}</td>
+                        <td className="py-2 px-3">
+                          {boardDirection === "arrivals" ? f.departure_airport : f.arrival_airport}
+                        </td>
+                        <td className="py-2 px-3">
+                          {f.departure_time_scheduled
+                            ? new Date(f.departure_time_scheduled).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "—"}
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <Badge className={statusColor[f.status] || ""}>
+                            {f.status?.toUpperCase() || "—"}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          ) : null}
+        </CardContent>
+      </Card>
     </div>
   )
 }

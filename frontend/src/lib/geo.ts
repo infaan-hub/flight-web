@@ -9,7 +9,6 @@ export interface LocationInfo {
 }
 
 const ZANZIBAR_BOUNDS: MapBounds = { lamin: -7.5, lomin: 38.0, lamax: -4.5, lomax: 40.5 }
-const WORLD_BOUNDS: MapBounds = { lamin: -90, lomin: -180, lamax: 90, lomax: 180 }
 
 export function isInZanzibar(lat: number, lng: number): boolean {
   return (

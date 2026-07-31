@@ -1,3 +1,7 @@
+# Render Blueprint for SkyTrack.
+# Deploy: New + -> Blueprint -> pick this repo. Blueprint honors rootDir/buildCommand,
+# so Python + Node versions are pinned here (manual Web Services ignore this file).
+# Vars with `sync: false` must be entered once in the Render dashboard.
 services:
   # ============ Django Backend API ============
   - type: web
@@ -15,9 +19,13 @@ services:
       - key: DJANGO_DEBUG
         value: "False"
       - key: DJANGO_ALLOWED_HOSTS
-        value: "*"
+        value: "flight-web-t6ia.onrender.com"
       - key: CORS_ALLOW_ALL
-        value: "True"
+        value: "False"
+      # Add the frontend's onrender.com URL here (comma-separated) so its
+      # browser requests pass CORS, e.g. https://skytrack-frontend.onrender.com
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://flight-web-t6ia.onrender.com"
       - key: DATABASE_URL
         value: "postgresql://neondb_owner:npg_1Ia9ywLgpDnO@ep-divine-grass-aya27i7w-pooler.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
       - key: AVIATIONSTACK_API_KEY

@@ -1,7 +1,9 @@
 import requests
 import logging
+import time
 from datetime import datetime, timedelta
 from django.conf import settings
+from .throttling import cache_get, cache_set
 
 logger = logging.getLogger(__name__)
 
@@ -48,11 +50,17 @@ class OpenSkyTokenManager:
             expires_in = data.get('expires_in', 1800)
             self.expires_at = datetime.now() + timedelta(seconds=expires_in - self.TOKEN_REFRESH_MARGIN)
             return self.token
+        except requests.HTTPError:
+            logger.error(
+                "OpenSky token refresh failed: HTTP %s body=%r",
+                response.status_code,
+                response.text[:300],
+            )
         except Exception as e:
             logger.error(f"OpenSky token refresh failed: {e}")
-            self.token = None
-            self.expires_at = None
-            return None
+        self.token = None
+        self.expires_at = None
+        return None
 
     def headers(self):
         """Request headers with a valid Bearer token, or {} when unauthenticated."""
@@ -102,9 +110,11 @@ class OpenSkyAPI:
             if response.status_code == 200:
                 data = response.json()
                 flights = []
+                now = int(time.time())
                 for state in (data.get('states') or [])[:100]:
                     if not state:
                         continue
+                    last_contact = state[4]
                     flights.append({
                         'icao24': state[0],
                         'callsign': state[1].strip() if state[1] else '',
@@ -116,7 +126,8 @@ class OpenSkyAPI:
                         'heading': state[10],
                         'vertical_rate': state[11] * MPS_TO_FTMIN if state[11] is not None else None,
                         'on_ground': state[8],
-                        'last_contact': state[4],
+                        'last_contact': last_contact,
+                        'is_stale': bool(last_contact) and (now - last_contact) > 60,
                         'category': state[17] if len(state) > 17 else None,
                     })
                 return flights
@@ -139,38 +150,111 @@ class OpenSkyAPI:
             logger.error(f"OpenSky search error: {e}")
             return None
 
-class AviationStackAPI:
-    """Integration with AviationStack API (requires free API key)"""
-    
-    BASE_URL = 'https://api.aviationstack.com/v1'
-    
     @classmethod
-    def get_flights(cls, flight_number=None, date=None):
-        """Search flights by number and/or date"""
+    def get_flight_track(cls, icao24, time=None):
+        """Get the historical path of a flight from the OpenSky tracks API.
+
+        Returns {icao24, callsign, startTime, endTime, path} where each path
+        entry is [timestamp, lat, lon, altitude_ft, track_deg, on_ground].
+        """
+        if not icao24:
+            return None
+        try:
+            params = {'time': time} if time else None
+            url = f'{cls.BASE_URL}/tracks/{icao24}'
+            response = requests.get(url, params=params, headers=open_sky_tokens.headers(), timeout=15)
+            if response.status_code == 401:
+                open_sky_tokens.token = None
+                open_sky_tokens.expires_at = None
+                headers = open_sky_tokens.headers()
+                if headers:
+                    response = requests.get(url, params=params, headers=headers, timeout=15)
+            if response.status_code != 200:
+                logger.warning("OpenSky track request failed: HTTP %s", response.status_code)
+                return None
+            data = response.json()
+            path = []
+            for entry in (data.get('path') or []):
+                if not entry:
+                    continue
+                path.append({
+                    'time': entry[0],
+                    'latitude': entry[1],
+                    'longitude': entry[2],
+                    'altitude': entry[3] * M_TO_FT if entry[3] is not None else None,
+                    'track': entry[4] if len(entry) > 4 else None,
+                    'on_ground': entry[5] if len(entry) > 5 else None,
+                })
+            return {
+                'icao24': data.get('icao24', icao24),
+                'callsign': data.get('callsign', ''),
+                'startTime': data.get('startTime'),
+                'endTime': data.get('endTime'),
+                'path': path,
+            }
+        except Exception as e:
+            logger.error(f"OpenSky track error: {e}")
+            return None
+
+class AviationStackAPI:
+    """Integration with AviationStack API (requires free API key).
+
+    Responses are cached (default 10 min) to protect the small free-tier
+    quota (500 requests/month).
+    """
+
+    BASE_URL = 'https://api.aviationstack.com/v1'
+    CACHE_TTL = 600
+
+    @classmethod
+    def _fetch(cls, params, cache_key):
+        hit = cache_get(cache_key)
+        if hit is not None:
+            return hit
+        result = cls._request(params)
+        if result:
+            cache_set(cache_key, result, cls.CACHE_TTL)
+        return result
+
+    @classmethod
+    def _request(cls, params):
         api_key = getattr(settings, 'AVIATIONSTACK_API_KEY', '')
         if not api_key or api_key == 'YOUR_AVIATIONSTACK_API_KEY':
             logger.warning("AviationStack API key not configured")
             return []
-        
         try:
-            params = {
-                'access_key': api_key,
-                'limit': 100,
-            }
-            if flight_number:
-                params['flight_iata'] = flight_number
-            if date:
-                params['flight_date'] = date
-            
-            url = f'{cls.BASE_URL}/flights'
-            response = requests.get(url, params=params, timeout=15)
+            response = requests.get(
+                f'{cls.BASE_URL}/flights',
+                params={**params, 'access_key': api_key, 'limit': params.get('limit', 100)},
+                timeout=15,
+            )
             if response.status_code == 200:
-                data = response.json()
-                return cls._format_flights(data.get('data', []))
+                return cls._format_flights(response.json().get('data', []))
+            logger.warning("AviationStack request failed: HTTP %s", response.status_code)
             return []
         except Exception as e:
             logger.error(f"AviationStack API error: {e}")
             return []
+
+    @classmethod
+    def get_flights(cls, flight_number=None, date=None):
+        """Search flights by number and/or date (cached 10 min)."""
+        params = {}
+        if flight_number:
+            params['flight_iata'] = flight_number
+        if date:
+            params['flight_date'] = date
+        key = f'avstack:flights:{flight_number or ''}:{date or ''}'
+        return cls._fetch(params, key)
+
+    @classmethod
+    def get_flights_by_airport(cls, airport_iata, direction='departures', date=None):
+        """Arrivals/departures board for an airport (cached 10 min)."""
+        params = {'dep_iata': airport_iata} if direction == 'departures' else {'arr_iata': airport_iata}
+        if date:
+            params['flight_date'] = date
+        key = f'avstack:board:{airport_iata}:{direction}:{date or ''}'
+        return cls._fetch(params, key)
     
     @classmethod
     def _format_flights(cls, raw_flights):

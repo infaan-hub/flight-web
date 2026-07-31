@@ -35,10 +35,9 @@ SECRET_KEY = os.environ.get(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = [h for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',') if h]
-
-if not DEBUG and not os.environ.get('DJANGO_ALLOWED_HOSTS'):
-    ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [h for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',') if h]
+if not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'flight-web-t6ia.onrender.com']
 
 
 # Application definition
@@ -146,14 +145,25 @@ STORAGES = {
     },
 }
 
-# CORS - allow the frontend (local dev + Render static site)
+# Caching - in-memory, per-process (single gunicorn worker)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'skytrack-cache',
+        'TIMEOUT': 300,
+        'OPTIONS': {'MAX_ENTRIES': 500},
+    }
+}
+
+# CORS - allow the frontend (local dev + Render static site).
+# CORS_ALLOW_ALL defaults to False; explicit origins must be configured.
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
+    'https://flight-web-t6ia.onrender.com',
     *[o.strip() for o in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',') if o.strip()],
 ]
-if os.environ.get('CORS_ALLOW_ALL', 'True').lower() == 'true':
-    CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = os.environ.get('CORS_ALLOW_ALL', 'False').lower() == 'true'
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
@@ -173,6 +183,8 @@ OPENSKY_CLIENT_SECRET = os.environ.get('OPENSKY_CLIENT_SECRET', '')
 # Security for production
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SECURE_SSL_REDIRECT = False
-    SESSION_COOKIE_SECURE = False
-    CSRF_COOKIE_SECURE = False
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 3600
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True

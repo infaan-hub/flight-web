@@ -5,20 +5,20 @@ import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
 import { Separator } from "../components/ui/separator"
 import FlightMap from "../components/FlightMap"
-import { getFlightDetail } from "../services/api"
-import type { FlightDetail as FlightDetailType, LiveFlight } from "../types"
+import { getFlightDetail, getFlightTrack } from "../services/api"
+import type { FlightDetail as FlightDetailType, LiveFlight, FlightTrack } from "../types"
 import {
   Plane,
   MapPin,
   Clock,
   Calendar,
   Building2,
-  ArrowRight,
   Loader2,
   Compass,
   Gauge,
   ArrowUp,
   ArrowLeft,
+  Route,
 } from "lucide-react"
 
 const statusColors: Record<string, string> = {
@@ -29,11 +29,44 @@ const statusColors: Record<string, string> = {
   cancelled: "bg-red-100 text-red-800",
 }
 
+function TrackSvg({ track }: { track: FlightTrack }) {
+  const points = track.path
+  if (points.length < 2) return null
+  const lats = points.map((p) => p.latitude)
+  const lngs = points.map((p) => p.longitude)
+  const minLat = Math.min(...lats)
+  const maxLat = Math.max(...lats)
+  const minLng = Math.min(...lngs)
+  const maxLng = Math.max(...lngs)
+  const pad = 0.02
+  const latSpan = Math.max(maxLat - minLat, 1e-4) + pad * 2
+  const lngSpan = Math.max(maxLng - minLng, 1e-4) + pad * 2
+  const W = 720
+  const H = 240
+  const coords = points.map((p) => ({
+    x: ((p.longitude - minLng + pad) / lngSpan) * W,
+    y: H - ((p.latitude - minLat + pad) / latSpan) * H,
+  }))
+  const line = coords.map((c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ")
+  const first = coords[0]
+  const last = coords[coords.length - 1]
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
+      <polyline points={coords.map((c) => `${c.x},${c.y}`).join(" ")} fill="none" stroke="#2563eb" strokeWidth="2" strokeLinejoin="round" strokeDasharray="1 0" />
+      <path d={line} fill="none" stroke="#2563eb" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={first.x} cy={first.y} r={4} fill="#94a3b8" />
+      <circle cx={last.x} cy={last.y} r={5} fill="#2563eb" stroke="#ffffff" strokeWidth="1.5" />
+    </svg>
+  )
+}
+
 export default function FlightDetail() {
   const { flightNumber } = useParams<{ flightNumber: string }>()
   const [flight, setFlight] = useState<FlightDetailType | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [track, setTrack] = useState<FlightTrack | null>(null)
+  const [trackLoading, setTrackLoading] = useState(false)
 
   useEffect(() => {
     if (!flightNumber) return
@@ -43,6 +76,15 @@ export default function FlightDetail() {
       .catch(() => setError("Flight not found"))
       .finally(() => setLoading(false))
   }, [flightNumber])
+
+  useEffect(() => {
+    if (!flight?.icao24) return
+    setTrackLoading(true)
+    getFlightTrack(flight.icao24)
+      .then(setTrack)
+      .catch(() => setTrack(null))
+      .finally(() => setTrackLoading(false))
+  }, [flight?.icao24])
 
   if (loading) {
     return (
@@ -69,7 +111,7 @@ export default function FlightDetail() {
 
   const liveFlightData: LiveFlight[] = flight.latitude && flight.longitude
     ? [{
-        icao24: "",
+        icao24: flight.icao24 || "",
         callsign: flight.flight_number,
         origin_country: flight.departure_country || "",
         latitude: flight.latitude,
@@ -80,6 +122,7 @@ export default function FlightDetail() {
         vertical_rate: null,
         on_ground: false,
         last_contact: null,
+        is_stale: flight.is_stale || false,
         departure_airport: flight.departure_airport,
         arrival_airport: flight.arrival_airport,
         departure_airport_info: flight.departure_airport_info,
@@ -133,6 +176,30 @@ export default function FlightDetail() {
           </CardContent>
         </Card>
       )}
+
+      {trackLoading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : track && track.path.length >= 2 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Route className="h-5 w-5 text-primary" />
+              Flight Trail
+              <span className="text-xs font-normal text-muted-foreground">
+                {track.path.length} positions
+                {track.startTime ? ` · ${new Date(track.startTime * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}
+                {" → "}
+                {track.endTime ? new Date(track.endTime * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TrackSvg track={track} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid md:grid-cols-3 gap-4">
         {flight.altitude && (

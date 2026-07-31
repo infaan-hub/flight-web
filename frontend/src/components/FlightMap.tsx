@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, useCallback } from "react"
-import Map, { Marker, Popup, Source, Layer, type ViewState, type MapRef } from "react-map-gl/mapbox"
 import { useRef } from "react"
+import { useNavigate } from "react-router-dom"
+import Map, { Marker, Popup, Source, Layer, type ViewState, type MapRef } from "react-map-gl/mapbox"
 import "mapbox-gl/dist/mapbox-gl.css"
 import type { LiveFlight, Airport } from "../types"
+import { haversineKm, formatEta, formatAge } from "../lib/flight"
 
 interface FlightMapProps {
   flights: LiveFlight[]
@@ -10,50 +12,31 @@ interface FlightMapProps {
   zoom?: number
   onBoundsChange?: (bounds: { lamin: number; lomin: number; lamax: number; lomax: number } | null) => void
   userLocation?: { lat: number; lng: number; label?: string } | null
+  focusFlight?: LiveFlight | null
 }
 
 const ZANZIBAR_CENTER: [number, number] = [-6.2222, 39.2249]
 const MAP_STYLE = "mapbox://styles/mapbox/dark-v11"
 
-function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
-  const R = 6371
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180
-  const lat1 = (a.lat * Math.PI) / 180
-  const lat2 = (b.lat * Math.PI) / 180
-  const h =
-    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2
-  return 2 * R * Math.asin(Math.sqrt(h))
-}
-
-function formatEta(distKm: number, speedKts: number | null) {
-  if (!speedKts || speedKts <= 0) return null
-  const hours = distKm / (speedKts * 1.852)
-  const h = Math.floor(hours)
-  const m = Math.round((hours - h) * 60)
-  return h > 0 ? `~${h}h ${m}m` : `~${m}m`
-}
-
 const PLANE_PATH =
   "M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"
 
-function PlaneSVG({ heading, color = "#2563eb", size = 30 }: { heading: number; color?: string; size?: number }) {
-  return (
-    <div style={{ transform: `rotate(${heading}deg)`, width: size, height: size }}>
-      <svg
-        viewBox="0 0 24 24"
-        width={size}
-        height={size}
-        fill={color}
-        stroke="#ffffff"
-        strokeWidth="1"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d={PLANE_PATH} />
-      </svg>
-    </div>
-  )
+function planeImageDataUrl(color: string, stroke: string): string {
+  const canvas = document.createElement("canvas")
+  canvas.width = 32
+  canvas.height = 32
+  const ctx = canvas.getContext("2d")
+  if (!ctx) return ""
+  ctx.translate(4, 4)
+  ctx.scale(1, 1)
+  const path = new Path2D(PLANE_PATH)
+  ctx.lineJoin = "round"
+  ctx.strokeStyle = stroke
+  ctx.lineWidth = 1.5
+  ctx.stroke(path)
+  ctx.fillStyle = color
+  ctx.fill(path)
+  return canvas.toDataURL("image/png")
 }
 
 function DestinationPin({ airport }: { airport: Airport }) {
@@ -94,9 +77,12 @@ export default function FlightMap({
   zoom = 8,
   onBoundsChange,
   userLocation,
+  focusFlight,
 }: FlightMapProps) {
   const token = import.meta.env.VITE_MAPBOX_TOKEN || ""
+  const navigate = useNavigate()
   const mapRef = useRef<MapRef | null>(null)
+  const [spriteReady, setSpriteReady] = useState(false)
   const [viewState, setViewState] = useState<ViewState>({
     longitude: center[1],
     latitude: center[0],
@@ -107,13 +93,30 @@ export default function FlightMap({
   })
   const [selected, setSelected] = useState<LiveFlight | null>(null)
 
+  const centerLat = center[0]
+  const centerLng = center[1]
+
   useEffect(() => {
-    setViewState((vs) => ({ ...vs, longitude: center[1], latitude: center[0] }))
-  }, [center[0], center[1]])
+    setViewState((vs) => ({ ...vs, longitude: centerLng, latitude: centerLat }))
+  }, [centerLat, centerLng])
 
   useEffect(() => {
     setViewState((vs) => ({ ...vs, zoom }))
   }, [zoom])
+
+  const focusKey = focusFlight ? `${focusFlight.icao24}:${focusFlight.callsign}` : null
+
+  useEffect(() => {
+    if (!focusKey || !focusFlight || focusFlight.latitude == null || focusFlight.longitude == null) return
+    const map = mapRef.current?.getMap()
+    map?.flyTo({
+      center: [focusFlight.longitude, focusFlight.latitude],
+      zoom: Math.max(viewState.zoom, 8),
+      duration: 800,
+    })
+    setSelected(focusFlight)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusKey])
 
   const handleMove = useCallback(({ viewState: vs }: { viewState: ViewState }) => setViewState(vs), [])
 
@@ -132,9 +135,62 @@ export default function FlightMap({
     [onBoundsChange]
   )
 
+  const handleLoad = useCallback((e: { target: { loadImage: (url: string, cb: (err?: Error | null, img?: unknown) => void) => void; addImage: (name: string, img: unknown) => void } }) => {
+    const map = e.target
+    map.loadImage(planeImageDataUrl("#2563eb", "#ffffff"), (err, img) => {
+      if (err || !img) return
+      map.addImage("plane", img)
+      map.loadImage(planeImageDataUrl("#6b7280", "#ffffff"), (err2, img2) => {
+        if (err2 || !img2) return
+        map.addImage("plane-ground", img2)
+        setSpriteReady(true)
+      })
+    })
+  }, [])
+
+  const handleMapClick = useCallback(
+    (e: { point: { x: number; y: number } }) => {
+      const map = mapRef.current?.getMap()
+      if (!map) return
+      const features = map.queryRenderedFeatures([e.point.x, e.point.y], { layers: ["planes"] })
+      if (!features.length) {
+        setSelected(null)
+        return
+      }
+      const feature = features[0] as { properties?: Record<string, unknown> } | undefined
+      const props = feature?.properties ?? {}
+      const icao24 = props?.icao24 as string | undefined
+      const match = icao24 ? validFlightsRef.current.find((f) => f.icao24 === icao24) : undefined
+      if (match) setSelected(match)
+    },
+    []
+  )
+
   const validFlights = useMemo(
     () => flights.filter((f) => f.latitude != null && f.longitude != null),
     [flights]
+  )
+  const validFlightsRef = useRef(validFlights)
+  useEffect(() => {
+    validFlightsRef.current = validFlights
+  }, [validFlights])
+
+  const flightsGeoJson = useMemo(
+    () => ({
+      type: "FeatureCollection" as const,
+      features: validFlights.map((f) => ({
+        type: "Feature" as const,
+        properties: {
+          icao24: f.icao24,
+          callsign: f.callsign || "",
+          heading: f.heading || 0,
+          on_ground: f.on_ground,
+          stale: f.is_stale || false,
+        },
+        geometry: { type: "Point" as const, coordinates: [f.longitude, f.latitude] },
+      })),
+    }),
+    [validFlights]
   )
 
   const selectedFlight = useMemo(
@@ -211,19 +267,68 @@ export default function FlightMap({
         {...viewState}
         onMove={handleMove}
         onMoveEnd={handleMoveEnd}
+        onLoad={handleLoad}
+        onClick={handleMapClick}
         style={{ width: "100%", height: "100%" }}
       >
-        {validFlights.map((f, idx) => (
-          <Marker key={`${f.icao24}-${idx}`} longitude={f.longitude!} latitude={f.latitude!} anchor="center">
-            <button
-              className="cursor-pointer bg-transparent border-0 p-0 hover:scale-110 transition-transform"
-              title={`${f.callsign || "Unknown"}`}
-              onClick={() => setSelected(f)}
-            >
-              <PlaneSVG heading={f.heading || 0} color={f.on_ground ? "#6b7280" : "#2563eb"} />
-            </button>
-          </Marker>
-        ))}
+        {spriteReady && (
+          <Source
+            id="flights-source"
+            type="geojson"
+            data={flightsGeoJson}
+            cluster={true}
+            clusterMaxZoom={11}
+            clusterRadius={45}
+          >
+            <Layer
+              id="clusters"
+              type="circle"
+              filter={["has", "point_count"]}
+              paint={{
+                "circle-color": [
+                  "step",
+                  ["get", "point_count"],
+                  "#51bbd6",
+                  10,
+                  "#f1f075",
+                  50,
+                  "#f28cb1",
+                ],
+                "circle-radius": ["step", ["get", "point_count"], 18, 10, 22, 50, 28],
+                "circle-stroke-width": 2,
+                "circle-stroke-color": "#ffffff",
+                "circle-opacity": 0.85,
+              }}
+            />
+            <Layer
+              id="cluster-count"
+              type="symbol"
+              filter={["has", "point_count"]}
+              layout={{
+                "text-field": ["get", "point_count_abbreviated"],
+                "text-size": 12,
+                "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+              }}
+              paint={{ "text-color": "#1e293b" }}
+            />
+            <Layer
+              id="planes"
+              type="symbol"
+              filter={["!", ["has", "point_count"]]}
+              layout={{
+                "icon-image": ["case", ["get", "on_ground"], "plane-ground", "plane"],
+                "icon-rotate": ["coalesce", ["get", "heading"], 0],
+                "icon-rotation-alignment": "map",
+                "icon-allow-overlap": true,
+                "icon-pitch-alignment": "map",
+                "icon-size": 0.85,
+              }}
+              paint={{
+                "icon-opacity": ["case", ["get", "stale"], 0.35, 1],
+              }}
+            />
+          </Source>
+        )}
 
         {userLocation && (
           <Marker longitude={userLocation.lng} latitude={userLocation.lat} anchor="center">
@@ -331,6 +436,12 @@ export default function FlightMap({
                         <span className="font-medium">{s.aircraft_type}</span>
                       </div>
                     )}
+                    {s.last_contact != null && (
+                      <div className="flex justify-between gap-4">
+                        <span>Updated</span>
+                        <span className="font-medium">{formatAge(s.last_contact) || "—"}</span>
+                      </div>
+                    )}
                     {s.departure_airport && s.departure_airport !== s.arrival_airport && (
                       <div className="flex justify-between gap-4">
                         <span>Departed</span>
@@ -386,6 +497,14 @@ export default function FlightMap({
                       </div>
                     )}
                   </div>
+                  {s.callsign && (
+                    <button
+                      onClick={() => navigate(`/flights/${s.callsign}`)}
+                      className="mt-2 w-full text-center text-xs font-semibold py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                    >
+                      View flight details
+                    </button>
+                  )}
                 </div>
               </Popup>
             )

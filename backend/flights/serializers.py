@@ -23,6 +23,7 @@ class LiveFlightSerializer(serializers.Serializer):
     vertical_rate = serializers.FloatField(allow_null=True)
     on_ground = serializers.BooleanField()
     last_contact = serializers.IntegerField(allow_null=True)
+    is_stale = serializers.BooleanField(required=False, default=False)
     departure_airport = serializers.CharField(allow_blank=True, allow_null=True, required=False, default=None)
     arrival_airport = serializers.CharField(allow_blank=True, allow_null=True, required=False, default=None)
     departure_airport_info = serializers.DictField(allow_null=True, required=False, default=None)

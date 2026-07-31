@@ -1,21 +1,29 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
 import { Input } from "../components/ui/input"
 import FlightMap from "../components/FlightMap"
-import { getLiveFlights, type MapBounds } from "../services/api"
+import type { MapBounds } from "../services/api"
+import { useLiveFlights } from "../hooks/useLiveFlights"
 import { getUserLocation, getDefaultLocation, type LocationInfo } from "../lib/geo"
+import { formatAge } from "../lib/flight"
 import type { LiveFlight } from "../types"
-import { Plane, RefreshCw, Loader2, Search, MapPin, Radio } from "lucide-react"
+import { RefreshCw, Loader2, Search, MapPin, Radio, Wifi, WifiOff } from "lucide-react"
+
+function stableKey(f: LiveFlight): string {
+  if (f.icao24) return `icao:${f.icao24}`
+  if (f.callsign) return `cs:${f.callsign}`
+  return `pos:${f.latitude ?? 0},${f.longitude ?? 0}`
+}
 
 export default function LiveRadar() {
-  const [flights, setFlights] = useState<LiveFlight[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [location, setLocation] = useState<LocationInfo>(getDefaultLocation())
   const [locating, setLocating] = useState(true)
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null)
+  const [focusFlight, setFocusFlight] = useState<LiveFlight | null>(null)
+  const [now, setNow] = useState(Date.now() / 1000)
 
   useEffect(() => {
     getUserLocation().then((loc) => {
@@ -24,26 +32,15 @@ export default function LiveRadar() {
     })
   }, [])
 
-  const fetchFlights = useCallback(async (bounds?: MapBounds | null) => {
-    try {
-      const data = await getLiveFlights(bounds || undefined)
-      setFlights(data)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now() / 1000), 10000)
+    return () => clearInterval(t)
   }, [])
 
-  useEffect(() => {
-    fetchFlights(mapBounds)
-  }, [fetchFlights, mapBounds])
-
-  useEffect(() => {
-    if (!autoRefresh) return
-    const interval = setInterval(() => fetchFlights(mapBounds), 30000)
-    return () => clearInterval(interval)
-  }, [autoRefresh, fetchFlights, mapBounds])
+  const { flights, source, loading } = useLiveFlights({
+    bounds: mapBounds,
+    enabled: autoRefresh,
+  })
 
   const handleBoundsChange = useCallback((bounds: MapBounds | null) => {
     setMapBounds(bounds)
@@ -58,13 +55,17 @@ export default function LiveRadar() {
     })
   }
 
-  const filtered = search.trim()
-    ? flights.filter(
-        (f) =>
-          f.callsign?.toLowerCase().includes(search.toLowerCase()) ||
-          f.origin_country?.toLowerCase().includes(search.toLowerCase())
-      )
-    : flights
+  const filtered = useMemo(
+    () =>
+      search.trim()
+        ? flights.filter(
+            (f) =>
+              f.callsign?.toLowerCase().includes(search.toLowerCase()) ||
+              f.origin_country?.toLowerCase().includes(search.toLowerCase())
+          )
+        : flights,
+    [flights, search]
+  )
 
   const inAir = filtered.filter((f) => !f.on_ground)
   const onGround = filtered.filter((f) => f.on_ground)
@@ -83,6 +84,21 @@ export default function LiveRadar() {
               <>
                 <MapPin className="h-4 w-4" />
                 Showing flights near <span className="font-medium">{location.label}</span>
+              </>
+            )}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+            {source === "sse" ? (
+              <>
+                <Wifi className="h-3 w-3 text-green-600" /> Live stream connected
+              </>
+            ) : source === "poll" ? (
+              <>
+                <WifiOff className="h-3 w-3 text-amber-600" /> Polling fallback (slower)
+              </>
+            ) : (
+              <>
+                <WifiOff className="h-3 w-3 text-muted-foreground" /> Updates paused
               </>
             )}
           </p>
@@ -108,17 +124,17 @@ export default function LiveRadar() {
           <button
             onClick={() => {
               setAutoRefresh(!autoRefresh)
-              if (!autoRefresh) fetchFlights(mapBounds)
+              if (!autoRefresh) setFocusFlight(null)
             }}
             className={`p-2 rounded-md border transition-colors ${autoRefresh ? "bg-primary/10 border-primary text-primary" : "bg-background text-muted-foreground"}`}
             title={autoRefresh ? "Auto-refresh on" : "Auto-refresh off"}
           >
-            <RefreshCw className={`h-4 w-4 ${autoRefresh ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-4 w-4 ${autoRefresh && source !== "idle" ? "animate-spin" : ""}`} />
           </button>
         </div>
       </div>
 
-      {loading ? (
+      {loading && flights.length === 0 ? (
         <div className="flex items-center justify-center min-h-[60vh]">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
         </div>
@@ -132,6 +148,7 @@ export default function LiveRadar() {
                 zoom={location.isZanzibar ? 9 : 10}
                 onBoundsChange={handleBoundsChange}
                 userLocation={{ lat: location.lat, lng: location.lng, label: location.label }}
+                focusFlight={focusFlight}
               />
             </CardContent>
           </Card>
@@ -141,6 +158,9 @@ export default function LiveRadar() {
               <CardTitle className="flex items-center gap-2">
                 <Radio className="h-5 w-5 text-primary" />
                 Live Flights ({filtered.length})
+                <span className="text-xs font-normal text-muted-foreground">
+                  {inAir.length} in air · {onGround.length} on ground
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -152,15 +172,24 @@ export default function LiveRadar() {
                       <th className="text-left py-2 px-3 font-medium">Country</th>
                       <th className="text-right py-2 px-3 font-medium">Altitude</th>
                       <th className="text-right py-2 px-3 font-medium">Speed</th>
-                      <th className="text-right py-2 px-3 font-medium">Heading</th>
+                      <th className="text-right py-2 px-3 font-medium">Updated</th>
                       <th className="text-center py-2 px-3 font-medium">Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((f, idx) => (
-                      <tr key={idx} className="border-b last:border-0 hover:bg-muted/50">
+                    {filtered.map((f) => (
+                      <tr
+                        key={stableKey(f)}
+                        onClick={() => setFocusFlight(f)}
+                        className={`border-b last:border-0 hover:bg-muted/50 cursor-pointer transition-colors ${f.is_stale ? "opacity-50" : ""}`}
+                        title="Click to center map"
+                      >
                         <td className="py-2 px-3 font-medium">
-                          <a href={`/flights/${f.callsign}`} className="text-primary hover:underline">
+                          <a
+                            href={`/flights/${f.callsign}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-primary hover:underline"
+                          >
                             {f.callsign || "—"}
                           </a>
                         </td>
@@ -172,7 +201,7 @@ export default function LiveRadar() {
                           {f.velocity ? `${Math.round(f.velocity)} kts` : "—"}
                         </td>
                         <td className="py-2 px-3 text-right">
-                          {f.heading ? `${f.heading}°` : "—"}
+                          {formatAge(f.last_contact, now) || "—"}
                         </td>
                         <td className="py-2 px-3 text-center">
                           <Badge variant={f.on_ground ? "secondary" : "default"}>

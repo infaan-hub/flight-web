@@ -1,11 +1,34 @@
-import type { LiveFlight, FlightDetail, FlightStats, Airport } from '../types'
+import type { LiveFlight, FlightDetail, FlightStats, Airport, FlightTrack } from '../types'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+const DEFAULT_TIMEOUT_MS = 15000
 
-async function fetchJSON<T>(url: string): Promise<T> {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`)
-  return res.json()
+let requestCounter = 0
+
+/**
+ * Fetch JSON with a timeout. Returns the response AND a stale guard:
+ * when `expectLatest` is used, a response whose request id is no longer the
+ * latest is considered stale and throws, so old responses never overwrite
+ * newer ones at the call site.
+ */
+export async function fetchJSON<T>(
+  url: string,
+  opts: { timeoutMs?: number; expectLatest?: boolean } = {}
+): Promise<T> {
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, expectLatest = false } = opts
+  const myId = ++requestCounter
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const res = await fetch(url, { signal: controller.signal })
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+    if (expectLatest && myId !== requestCounter) {
+      throw new Error('Stale response ignored')
+    }
+    return res.json()
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 export interface MapBounds {
@@ -15,32 +38,19 @@ export interface MapBounds {
   lomax: number
 }
 
-export function getLiveFlights(bounds?: MapBounds): Promise<LiveFlight[]> {
-  let url = `${API_BASE}/live-flights/`
-  if (bounds) {
-    const query = new URLSearchParams({
-      lamin: String(bounds.lamin),
-      lomin: String(bounds.lomin),
-      lamax: String(bounds.lamax),
-      lomax: String(bounds.lomax),
-    })
-    url += `?${query.toString()}`
-  }
-  return fetchJSON<LiveFlight[]>(url)
+export function boundsQuery(bounds?: MapBounds): string {
+  if (!bounds) return ''
+  const query = new URLSearchParams({
+    lamin: String(bounds.lamin),
+    lomin: String(bounds.lomin),
+    lamax: String(bounds.lamax),
+    lomax: String(bounds.lomax),
+  })
+  return `?${query.toString()}`
 }
 
-export function getFlightPositions(bounds?: MapBounds): Promise<LiveFlight[]> {
-  let url = `${API_BASE}/positions/`
-  if (bounds) {
-    const query = new URLSearchParams({
-      lamin: String(bounds.lamin),
-      lomin: String(bounds.lomin),
-      lamax: String(bounds.lamax),
-      lomax: String(bounds.lomax),
-    })
-    url += `?${query.toString()}`
-  }
-  return fetchJSON<LiveFlight[]>(url)
+export function getLiveFlights(bounds?: MapBounds): Promise<LiveFlight[]> {
+  return fetchJSON<LiveFlight[]>(`${API_BASE}/live-flights/${boundsQuery(bounds)}`, { expectLatest: true })
 }
 
 export function searchFlights(params: {
@@ -56,7 +66,7 @@ export function searchFlights(params: {
   if (params.departure) query.set('departure', params.departure)
   if (params.arrival) query.set('arrival', params.arrival)
   if (params.date) query.set('date', params.date)
-  return fetchJSON<FlightDetail[]>(`${API_BASE}/search/?${query.toString()}`)
+  return fetchJSON<FlightDetail[]>(`${API_BASE}/search/?${query.toString()}`, { expectLatest: true })
 }
 
 export function getFlightDetail(flightNumber: string): Promise<FlightDetail> {
@@ -65,11 +75,11 @@ export function getFlightDetail(flightNumber: string): Promise<FlightDetail> {
 
 export function getTodaysFlights(lat?: number, lng?: number, radiusKm?: number): Promise<FlightDetail[]> {
   const params = new URLSearchParams()
-  if (lat != null) params.set("lat", String(lat))
-  if (lng != null) params.set("lng", String(lng))
-  if (radiusKm != null) params.set("radius_km", String(radiusKm))
+  if (lat != null) params.set('lat', String(lat))
+  if (lng != null) params.set('lng', String(lng))
+  if (radiusKm != null) params.set('radius_km', String(radiusKm))
   const qs = params.toString()
-  return fetchJSON<FlightDetail[]>(`${API_BASE}/flights/today/${qs ? `?${qs}` : ""}`)
+  return fetchJSON<FlightDetail[]>(`${API_BASE}/flights/today/${qs ? `?${qs}` : ''}`, { expectLatest: true })
 }
 
 export function getFlightStats(): Promise<FlightStats> {
@@ -78,4 +88,26 @@ export function getFlightStats(): Promise<FlightStats> {
 
 export function getAirports(): Promise<Airport[]> {
   return fetchJSON<Airport[]>(`${API_BASE}/airports/`)
+}
+
+export function getFlightTrack(icao24: string): Promise<FlightTrack> {
+  return fetchJSON<FlightTrack>(`${API_BASE}/track/${icao24}/`)
+}
+
+export type BoardDirection = 'arrivals' | 'departures'
+
+export function getAirportBoard(iata: string, direction: BoardDirection): Promise<FlightDetail[]> {
+  return fetchJSON<FlightDetail[]>(`${API_BASE}/flights/${direction === 'arrivals' ? 'arrival' : 'departure'}/?airport=${iata}`, { expectLatest: true })
+}
+
+/**
+ * URL for the Server-Sent Events live stream. `EventSource` can't send
+ * headers, so bounds travel in the query string.
+ */
+export function liveStreamUrl(bounds?: MapBounds): string {
+  return `${API_BASE}/live/stream/${boundsQuery(bounds)}`
+}
+
+export function isEventSourceSupported(): boolean {
+  return typeof EventSource !== 'undefined'
 }
