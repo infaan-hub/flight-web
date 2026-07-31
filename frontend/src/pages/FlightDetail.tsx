@@ -49,10 +49,10 @@ function TimeBlock({
   const utc = formatUtcTime(iso)
   return (
     <div className="flex items-start gap-2">
-      <Clock className={`h-4 w-4 mt-0.5 ${highlight ? "text-green-600" : "text-muted-foreground"}`} />
+      <Clock className={`h-4 w-4 mt-0.5 ${highlight ? "text-green-400" : "text-muted-foreground"}`} />
       <div>
         <p className="text-muted-foreground">{label}</p>
-        <p className={`font-medium ${highlight ? "text-green-700" : ""}`}>
+        <p className={`font-medium ${highlight ? "text-green-300" : ""}`}>
           {local || utc}
         </p>
         <p className="text-xs text-muted-foreground">{utc}</p>
@@ -86,8 +86,8 @@ function StatusTimeline({ flight }: { flight: FlightDetailType }) {
       <div
         className={`rounded-lg border px-4 py-3 text-sm font-medium ${
           current === "Canceled"
-            ? "border-red-200 bg-red-50 text-red-700"
-            : "border-orange-200 bg-orange-50 text-orange-700"
+            ? "border-red-400/20 bg-red-400/10 text-red-300"
+            : "border-orange-400/20 bg-orange-400/10 text-orange-300"
         }`}
       >
         This flight is {current.toLowerCase()}.
@@ -121,7 +121,7 @@ function StatusTimeline({ flight }: { flight: FlightDetailType }) {
               )}
             </div>
             <div className="pb-2 min-w-0">
-              <p className={`text-xs font-semibold ${reached ? "text-green-700" : "text-muted-foreground"}`}>
+              <p className={`text-xs font-semibold ${reached ? "text-green-300" : "text-muted-foreground"}`}>
                 {state}
               </p>
               {stepTimes[state] && (
@@ -411,22 +411,22 @@ export default function FlightDetail() {
           )}
           <div className="flex flex-wrap gap-2 text-xs">
             {depVariation && (
-              <span className={`px-2 py-1 rounded-full font-medium ${depVariation.startsWith("+") ? "bg-red-100 text-red-700" : depVariation === "On time" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
+              <span className={`px-2 py-1 rounded-full font-medium ${depVariation.startsWith("+") ? "bg-red-400/10 text-red-300 border border-red-400/20" : depVariation === "On time" ? "bg-green-400/10 text-green-300 border border-green-400/20" : "bg-blue-400/10 text-blue-300 border border-blue-400/20"}`}>
                 Departure: {depVariation}
               </span>
             )}
             {arrVariation && (
-              <span className={`px-2 py-1 rounded-full font-medium ${arrVariation.startsWith("+") ? "bg-red-100 text-red-700" : arrVariation === "On time" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
+              <span className={`px-2 py-1 rounded-full font-medium ${arrVariation.startsWith("+") ? "bg-red-400/10 text-red-300 border border-red-400/20" : arrVariation === "On time" ? "bg-green-400/10 text-green-300 border border-green-400/20" : "bg-blue-400/10 text-blue-300 border border-blue-400/20"}`}>
                 Arrival: {arrVariation}
               </span>
             )}
             {flight.is_stale && (
-              <span className="px-2 py-1 rounded-full font-medium bg-amber-100 text-amber-700">
+              <span className="px-2 py-1 rounded-full font-medium bg-amber-400/10 text-amber-300 border border-amber-400/20">
                 Position stale — last data may be up to an hour old
               </span>
             )}
             {flight.position_jump && (
-              <span className="px-2 py-1 rounded-full font-medium bg-orange-100 text-orange-700">
+              <span className="px-2 py-1 rounded-full font-medium bg-orange-400/10 text-orange-300 border border-orange-400/20">
                 Unusual position jump detected
               </span>
             )}
@@ -467,7 +467,7 @@ export default function FlightDetail() {
         {flight.altitude && (
           <Card>
             <CardContent className="p-4 flex items-center gap-3">
-              <ArrowUp className="h-5 w-5 text-blue-600" />
+              <ArrowUp className="h-5 w-5 text-sky-400" />
               <div>
                 <p className="text-sm text-muted-foreground">Altitude</p>
                 <p className="text-lg font-bold">{Math.round(flight.altitude).toLocaleString()} ft</p>
@@ -478,7 +478,7 @@ export default function FlightDetail() {
         {flight.speed && (
           <Card>
             <CardContent className="p-4 flex items-center gap-3">
-              <Gauge className="h-5 w-5 text-green-600" />
+              <Gauge className="h-5 w-5 text-emerald-400" />
               <div>
                 <p className="text-sm text-muted-foreground">Speed</p>
                 <p className="text-lg font-bold">{Math.round(flight.speed)} kts</p>
@@ -489,7 +489,7 @@ export default function FlightDetail() {
         {flight.heading && (
           <Card>
             <CardContent className="p-4 flex items-center gap-3">
-              <Compass className="h-5 w-5 text-purple-600" />
+              <Compass className="h-5 w-5 text-purple-400" />
               <div>
                 <p className="text-sm text-muted-foreground">Heading</p>
                 <p className="text-lg font-bold">{flight.heading}°</p>

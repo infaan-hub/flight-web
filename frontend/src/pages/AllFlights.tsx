@@ -6,6 +6,7 @@ import { getTodaysFlights } from "../services/api"
 import { getUserLocation, getDefaultLocation, type LocationInfo } from "../lib/geo"
 import type { FlightDetail } from "../types"
 import { Loader2, Search, MapPin } from "lucide-react"
+import Reveal from "../components/Reveal"
 
 export default function AllFlights() {
   const [flights, setFlights] = useState<FlightDetail[]>([])
@@ -83,7 +84,9 @@ export default function AllFlights() {
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map((flight, idx) => (
-          <FlightCard key={`${flight.flight_number}-${idx}`} flight={flight} />
+          <Reveal key={`${flight.flight_number}-${idx}`} delay={Math.min(idx * 0.05, 0.4)}>
+            <FlightCard flight={flight} />
+          </Reveal>
         ))}
       </div>
 

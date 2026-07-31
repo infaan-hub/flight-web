@@ -19,7 +19,8 @@ export default function TiltedCard({ children, className = "", maxTilt = 10 }: T
 
   const glareX = useTransform(px, [0, 1], ["0%", "100%"])
   const glareY = useTransform(py, [0, 1], ["0%", "100%"])
-  const glareBackground = useMotionTemplate`radial-gradient(circle at ${glareX} ${glareY}, rgba(255,255,255,0.16), transparent 55%)`
+  const glareBackground = useMotionTemplate`radial-gradient(circle at ${glareX} ${glareY}, rgba(125, 211, 252, 0.22), rgba(255, 255, 255, 0.06) 45%, transparent 60%)`
+  const glowShadow = useMotionTemplate`0 0 32px rgba(56, 189, 248, 0.22)`
 
   const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = ref.current?.getBoundingClientRect()
@@ -39,7 +40,7 @@ export default function TiltedCard({ children, className = "", maxTilt = 10 }: T
         ref={ref}
         onMouseMove={onMove}
         onMouseLeave={onLeave}
-        style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
+        style={{ rotateX, rotateY, boxShadow: glowShadow, transformStyle: "preserve-3d" }}
         className={`glass rounded-2xl ${className}`}
       >
         <div style={{ transform: "translateZ(30px)" }} className="relative h-full">

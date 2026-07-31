@@ -126,23 +126,156 @@ body {
   animation: float-y 6s ease-in-out infinite;
 }
 
+/* Mini radar sweep (hero live pill) */
+@keyframes radar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.radar-sweep {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  border: 1px solid rgba(52, 211, 153, 0.55);
+  background:
+    radial-gradient(circle, rgba(52, 211, 153, 0.35) 0%, rgba(52, 211, 153, 0.06) 55%, transparent 72%),
+    rgba(52, 211, 153, 0.1);
+  overflow: hidden;
+}
+
+.radar-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(from 0deg, rgba(52, 211, 153, 0.85), transparent 70deg);
+  animation: radar-spin 2.4s linear infinite;
+}
+
+/* Callsign marquee ticker */
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
+}
+
+.marquee-track {
+  display: flex;
+  gap: 3rem;
+  width: max-content;
+  animation: marquee 45s linear infinite;
+}
+
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+/* One-shot gradient sweep across the navbar pill on page load */
+@keyframes nav-sweep {
+  0% {
+    transform: translateX(-130%) skewX(-14deg);
+    opacity: 0.6;
+  }
+  65% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateX(130%) skewX(-14deg);
+    opacity: 0;
+  }
+}
+
+.nav-sweep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 45%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(125, 211, 252, 0.22), transparent);
+  animation: nav-sweep 1.4s 0.15s ease-out forwards;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 10px;
+  width: 12px;
 }
 ::-webkit-scrollbar-track {
   background: hsl(var(--background));
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(217 25% 24%);
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.45), rgba(30, 64, 175, 0.45));
+  border: 3px solid hsl(var(--background));
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(199 95% 55% / 0.6);
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.7), rgba(30, 64, 175, 0.7));
 }
 
 ::selection {
   background: hsl(199 95% 55% / 0.35);
+}
+
+/* Mapbox dark-glass chrome (popup, controls, attribution) */
+.mapboxgl-popup-content {
+  background: rgba(8, 13, 26, 0.92);
+  color: hsl(var(--foreground));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.9rem;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+  padding: 0.75rem;
+}
+.mapboxgl-popup-anchor-top .mapboxgl-popup-tip {
+  border-bottom-color: rgba(8, 13, 26, 0.92);
+}
+.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
+  border-top-color: rgba(8, 13, 26, 0.92);
+}
+.mapboxgl-popup-anchor-left .mapboxgl-popup-tip {
+  border-right-color: rgba(8, 13, 26, 0.92);
+}
+.mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
+  border-left-color: rgba(8, 13, 26, 0.92);
+}
+.mapboxgl-popup-anchor-top-left .mapboxgl-popup-tip,
+.mapboxgl-popup-anchor-bottom-left .mapboxgl-popup-tip {
+  border-right-color: rgba(8, 13, 26, 0.92);
+}
+.mapboxgl-popup-anchor-top-right .mapboxgl-popup-tip,
+.mapboxgl-popup-anchor-bottom-right .mapboxgl-popup-tip {
+  border-left-color: rgba(8, 13, 26, 0.92);
+}
+.mapboxgl-ctrl-group {
+  background: rgba(8, 13, 26, 0.88);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+.mapboxgl-ctrl-group button {
+  color: #e2e8f0;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.mapboxgl-ctrl-group button .mapboxgl-ctrl-icon {
+  filter: invert(1) hue-rotate(185deg) saturate(3);
+}
+.mapboxgl-ctrl-attrib {
+  background: rgba(8, 13, 26, 0.75);
+  color: #7c8aa0;
+}
+.mapboxgl-ctrl-attrib a {
+  color: #7dd3fc;
+}
+.mapboxgl-ctrl-scale {
+  background-color: rgba(8, 13, 26, 0.75);
+  color: #cbd5e1;
+  border-color: #cbd5e1;
 }
 
 /* Native form controls follow the dark theme */

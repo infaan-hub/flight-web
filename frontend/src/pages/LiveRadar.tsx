@@ -5,6 +5,7 @@ import { Input } from "../components/ui/input"
 const FlightMap = lazy(() => import("../components/FlightMap"))
 import type { MapBounds } from "../services/api"
 import { useLiveFlights } from "../hooks/useLiveFlights"
+import { motion } from "framer-motion"
 import { getUserLocation, getDefaultLocation, type LocationInfo } from "../lib/geo"
 import { formatAge } from "../lib/flight"
 import type { LiveFlight } from "../types"
@@ -90,11 +91,11 @@ export default function LiveRadar() {
           <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
             {source === "sse" ? (
               <>
-                <Wifi className="h-3 w-3 text-green-600" /> Live stream connected
+                <Wifi className="h-3 w-3 text-green-400" /> Live stream connected
               </>
             ) : source === "poll" ? (
               <>
-                <WifiOff className="h-3 w-3 text-amber-600" /> Polling fallback (slower)
+                <WifiOff className="h-3 w-3 text-amber-400" /> Polling fallback (slower)
               </>
             ) : (
               <>
@@ -188,11 +189,14 @@ export default function LiveRadar() {
                   </thead>
                   <tbody>
                     {filtered.map((f) => (
-                      <tr
+                      <motion.tr
                         key={stableKey(f)}
                         onClick={() => setFocusFlight(f)}
                         className={`border-b last:border-0 hover:bg-muted/50 cursor-pointer transition-colors ${f.is_stale ? "opacity-50" : ""}`}
                         title="Click to center map"
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.35, delay: Math.min(filtered.indexOf(f) * 0.02, 0.5) }}
                       >
                         <td className="py-2 px-3 font-medium">
                           <a
@@ -218,7 +222,7 @@ export default function LiveRadar() {
                             {f.on_ground ? "On Ground" : "In Air"}
                           </Badge>
                         </td>
-                      </tr>
+                      </motion.tr>
                     ))}
                   </tbody>
                 </table>

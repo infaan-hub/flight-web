@@ -16,7 +16,8 @@ export default function Navbar() {
   return (
     <header className="sticky top-3 z-50 w-full px-3">
       <div className="container-custom">
-        <div className="glass-strong flex h-14 items-center justify-between rounded-2xl px-4">
+        <div className="glass-strong relative flex h-14 items-center justify-between overflow-hidden rounded-2xl px-4">
+          <span className="nav-sweep" aria-hidden />
           <Link to="/" className="flex items-center gap-2.5 group">
             <span className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 shadow-lg shadow-sky-500/25 transition-transform group-hover:scale-105">
               <Plane className="h-5 w-5 text-white -rotate-12" />

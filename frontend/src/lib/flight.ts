@@ -60,19 +60,19 @@ export function normalizeStatusState(raw?: string | null): FlightStatusState {
 export function statusStateMeta(state: string): { label: string; badge: string } {
   switch (normalizeStatusState(state)) {
     case "Scheduled":
-      return { label: "Scheduled", badge: "bg-blue-100 text-blue-700" }
+      return { label: "Scheduled", badge: "bg-blue-400/10 text-blue-300 border border-blue-400/20" }
     case "OutGate":
-      return { label: "Departed gate", badge: "bg-cyan-100 text-cyan-700" }
+      return { label: "Departed gate", badge: "bg-cyan-400/10 text-cyan-300 border border-cyan-400/20" }
     case "InAir":
-      return { label: "In air", badge: "bg-green-100 text-green-700" }
+      return { label: "In air", badge: "bg-green-400/10 text-green-300 border border-green-400/20" }
     case "Landed":
-      return { label: "Landed", badge: "bg-slate-100 text-slate-700" }
+      return { label: "Landed", badge: "bg-white/10 text-slate-300 border border-white/15" }
     case "InGate":
-      return { label: "At gate", badge: "bg-slate-100 text-slate-700" }
+      return { label: "At gate", badge: "bg-white/10 text-slate-300 border border-white/15" }
     case "Canceled":
-      return { label: "Canceled", badge: "bg-red-100 text-red-700" }
+      return { label: "Canceled", badge: "bg-red-400/10 text-red-300 border border-red-400/20" }
     case "Diverted":
-      return { label: "Diverted", badge: "bg-orange-100 text-orange-700" }
+      return { label: "Diverted", badge: "bg-orange-400/10 text-orange-300 border border-orange-400/20" }
     default:
       return { label: "Unknown", badge: "bg-muted text-muted-foreground" }
   }

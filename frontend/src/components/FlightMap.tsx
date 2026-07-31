@@ -359,15 +359,15 @@ export default function FlightMap({
                 "circle-color": [
                   "step",
                   ["get", "point_count"],
-                  "#51bbd6",
+                  "#22d3ee",
                   10,
-                  "#f1f075",
+                  "#38bdf8",
                   50,
-                  "#f28cb1",
+                  "#a78bfa",
                 ],
                 "circle-radius": ["step", ["get", "point_count"], 18, 10, 22, 50, 28],
                 "circle-stroke-width": 2,
-                "circle-stroke-color": "#ffffff",
+                "circle-stroke-color": "rgba(255,255,255,0.85)",
                 "circle-opacity": 0.85,
               }}
             />
@@ -380,7 +380,7 @@ export default function FlightMap({
                 "text-size": 12,
                 "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
               }}
-              paint={{ "text-color": "#1e293b" }}
+              paint={{ "text-color": "#0b1120" }}
             />
             <Layer
               id="planes"
@@ -411,9 +411,9 @@ export default function FlightMap({
                 width: 18,
                 height: 18,
                 borderRadius: "50%",
-                background: "#2563eb",
-                border: "3px solid #ffffff",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.4)",
+                background: "#22d3ee",
+                border: "3px solid rgba(255,255,255,0.9)",
+                boxShadow: "0 0 16px rgba(34,211,238,0.6)",
               }}
             />
           </Marker>
@@ -490,28 +490,28 @@ export default function FlightMap({
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="font-bold text-sm">{s.callsign || "Unknown Flight"}</div>
-                      {s.airline && <div className="text-[11px] text-gray-500">{s.airline}</div>}
+                      {s.airline && <div className="text-[11px] text-slate-400">{s.airline}</div>}
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${state.badge}`}>
                         {s.on_ground ? "On Ground" : state.label}
                       </span>
                       {s.arrival_delay != null && s.arrival_delay > 0 && (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-400/10 text-red-300 border border-red-400/20">
                           Delayed {s.arrival_delay}m
                         </span>
                       )}
                     </div>
                   </div>
-                  <div className="text-xs text-gray-600 space-y-1 mt-1.5">
+                  <div className="text-xs text-slate-400 space-y-1 mt-1.5">
                     {estimated && (
-                      <div className="flex items-center gap-1 text-[11px] italic text-amber-700">
+                      <div className="flex items-center gap-1 text-[11px] italic text-amber-300">
                         Estimated position
                         {s.last_contact ? ` · ${formatAge(s.last_contact)}` : ""}
                       </div>
                     )}
                     {s.position_jump && (
-                      <div className="text-[11px] italic text-orange-700">
+                      <div className="text-[11px] italic text-orange-300">
                         Unusual position jump detected (possible receiver glitch)
                       </div>
                     )}
@@ -572,22 +572,22 @@ export default function FlightMap({
                       </div>
                     )}
                     {dest && (
-                      <div className="border-t border-gray-200 pt-1.5 mt-1.5">
-                        <div className="flex items-center gap-1 font-semibold text-blue-700">
+                      <div className="border-t border-white/10 pt-1.5 mt-1.5">
+                        <div className="flex items-center gap-1 font-semibold text-sky-400">
                           <span aria-hidden>→</span>
                           {dest.iata || ""} {dest.name}
                         </div>
-                        <div className="text-gray-500">
+                        <div className="text-slate-400">
                           {[dest.city, dest.country].filter(Boolean).join(", ") || "—"}
                         </div>
                         {(s.arrival_terminal || s.arrival_gate) && (
-                          <div className="text-gray-500">
+                          <div className="text-slate-400">
                             Terminal {s.arrival_terminal || "—"}
                             {s.arrival_gate ? ` · Gate ${s.arrival_gate}` : ""}
                           </div>
                         )}
                         {s.arrival_time_scheduled && (
-                          <div className="text-gray-500">
+                          <div className="text-slate-400">
                             Arrives{" "}
                             {new Date(s.arrival_time_scheduled).toLocaleTimeString([], {
                               hour: "2-digit",
@@ -612,7 +612,7 @@ export default function FlightMap({
                   {s.callsign && (
                     <button
                       onClick={() => navigate(`/flights/${s.callsign}`)}
-                      className="mt-2 w-full text-center text-xs font-semibold py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                      className="mt-2 w-full text-center text-xs font-semibold py-1.5 rounded-md bg-gradient-to-r from-sky-500 to-blue-600 text-white hover:from-sky-400 hover:to-blue-500 transition-colors"
                     >
                       View flight details
                     </button>

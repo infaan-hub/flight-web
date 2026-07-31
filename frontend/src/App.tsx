@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom"
 import { AnimatePresence, motion } from "framer-motion"
 import Navbar from "./components/Navbar"
 import Aurora from "./components/Aurora"
+import CursorRing from "./components/CursorRing"
 import { Loader2 } from "lucide-react"
 
 const Home = lazy(() => import("./pages/Home"))
@@ -51,6 +52,7 @@ function App() {
     <BrowserRouter>
       <div className="grain relative min-h-screen bg-background text-foreground">
         <Aurora />
+        <CursorRing />
         <Navbar />
         <main className="relative z-10">
           <AnimatedRoutes />

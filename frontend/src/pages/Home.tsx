@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, Suspense, lazy } from "react"
 import { Link } from "react-router-dom"
+import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion"
 import { animate, eases } from "animejs"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
@@ -41,6 +42,8 @@ const FEATURES = [
   { icon: Globe2, title: "Global coverage", desc: "Crowdsourced ADS-B from thousands of receivers, with honest estimates where coverage fades over oceans.", img: "https://images.unsplash.com/photo-1608231387042-66d1773070a5?auto=format&fit=crop&w=800&q=70" },
 ]
 
+const HEADLINES = ["live and honest.", "clear and exact.", "instant and precise."]
+
 const STEPS = [
   { n: "01", title: "Pick a flight", desc: "Search by flight number, callsign, airport or route — or just browse the live map." },
   { n: "02", title: "Follow it live", desc: "Position, altitude, speed and trail updates in real time, right in your browser." },
@@ -68,6 +71,17 @@ export default function Home() {
   const [subscribed, setSubscribed] = useState(false)
   const heroPlaneRef = useRef<HTMLDivElement>(null)
   const heroTakeoffRef = useRef(false)
+  const heroRef = useRef<HTMLElement>(null)
+  const [headlineIdx, setHeadlineIdx] = useState(0)
+
+  const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] })
+  const heroImgY = useTransform(scrollYProgress, [0, 1], ["0%", "26%"])
+  const heroImgScale = useTransform(scrollYProgress, [0, 1], [1, 1.08])
+
+  useEffect(() => {
+    const t = setInterval(() => setHeadlineIdx((i) => (i + 1) % HEADLINES.length), 3400)
+    return () => clearInterval(t)
+  }, [])
 
   useEffect(() => {
     getUserLocation().then(setLocation)
@@ -141,21 +155,22 @@ export default function Home() {
   }, [])
 
   const allFailed = failed.length === 3
+  const tickerCallsigns = liveFlights.map((f) => f.callsign).filter((c): c is string => Boolean(c))
 
   return (
     <div className="space-y-24">
       {/* ── HERO ─────────────────────────────────────────────── */}
-      <section className="relative -mt-20 min-h-[92vh] flex items-center overflow-hidden">
-        <div className="absolute inset-0">
+      <section ref={heroRef} className="relative -mt-20 min-h-[92vh] flex items-center overflow-hidden">
+        <motion.div className="absolute inset-0" style={{ y: heroImgY, scale: heroImgScale }}>
           <img
             src={HERO_IMG}
             alt="Airplane taking off into a sunset sky"
             className="h-full w-full object-cover"
             fetchPriority="high"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#05070f]/70 via-[#05070f]/45 to-[#05070f]" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#05070f]/80 via-transparent to-transparent" />
-        </div>
+        </motion.div>
+        <div className="absolute inset-0 bg-gradient-to-b from-[#05070f]/70 via-[#05070f]/45 to-[#05070f]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#05070f]/80 via-transparent to-transparent" />
 
         {/* Hero plane — takes off when you scroll */}
         <div
@@ -171,10 +186,7 @@ export default function Home() {
         <div className="container-custom relative z-10 pt-28 pb-16">
           <Reveal direction="none">
             <div className="inline-flex items-center gap-2 rounded-full glass px-4 py-1.5 text-xs font-medium text-sky-200 mb-6">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-              </span>
+              <span className="radar-sweep" aria-hidden />
               Live ADS-B coverage · {stats ? `${stats.flights_in_air.toLocaleString()} aircraft airborne` : "thousands of aircraft"}
             </div>
           </Reveal>
@@ -184,7 +196,18 @@ export default function Home() {
               The sky,
               <br />
               <span className="bg-gradient-to-r from-sky-400 via-cyan-300 to-teal-300 bg-clip-text text-transparent">
-                live and honest.
+                <AnimatePresence mode="wait">
+                  <motion.span
+                    key={headlineIdx}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.45, ease: "easeOut" }}
+                    className="inline-block"
+                  >
+                    {HEADLINES[headlineIdx]}
+                  </motion.span>
+                </AnimatePresence>
               </span>
             </h1>
           </Reveal>
@@ -243,6 +266,24 @@ export default function Home() {
           Scroll
         </div>
       </section>
+
+      {/* ── LIVE CALLSIGN TICKER ─────────────────────────────── */}
+      {tickerCallsigns.length >= 3 && (
+        <section className="marquee glass rounded-2xl py-3" aria-hidden>
+          <div className="marquee-track">
+            {[...tickerCallsigns, ...tickerCallsigns].map((cs, i) => (
+              <span
+                key={`${cs}-${i}`}
+                className="flex items-center gap-3 text-sm whitespace-nowrap text-slate-300"
+              >
+                <Plane className="h-3.5 w-3.5 text-sky-400" />
+                {cs}
+                <span className="h-1 w-1 rounded-full bg-white/25" />
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── STATS STRIP ──────────────────────────────────────── */}
       <section className="container-custom">

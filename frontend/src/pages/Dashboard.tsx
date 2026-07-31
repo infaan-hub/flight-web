@@ -59,10 +59,10 @@ export default function Dashboard() {
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: "Total Today", value: stats.total_flights_today.toLocaleString(), icon: Plane, color: "text-blue-600", bg: "bg-blue-100" },
-            { label: "Currently Flying", value: stats.flights_in_air.toLocaleString(), icon: TrendingUp, color: "text-green-600", bg: "bg-green-100" },
-            { label: "Delayed", value: stats.flights_delayed.toLocaleString(), icon: Clock, color: "text-yellow-600", bg: "bg-yellow-100" },
-            { label: "Cancelled", value: stats.flights_cancelled.toLocaleString(), icon: AlertTriangle, color: "text-red-600", bg: "bg-red-100" },
+            { label: "Total Today", value: stats.total_flights_today.toLocaleString(), icon: Plane, color: "text-blue-300", bg: "bg-blue-400/10 border border-blue-400/20" },
+            { label: "Currently Flying", value: stats.flights_in_air.toLocaleString(), icon: TrendingUp, color: "text-green-300", bg: "bg-green-400/10 border border-green-400/20" },
+            { label: "Delayed", value: stats.flights_delayed.toLocaleString(), icon: Clock, color: "text-yellow-300", bg: "bg-amber-400/10 border border-amber-400/20" },
+            { label: "Cancelled", value: stats.flights_cancelled.toLocaleString(), icon: AlertTriangle, color: "text-red-300", bg: "bg-red-400/10 border border-red-400/20" },
           ].map((item) => (
             <Card key={item.label}>
               <CardContent className="p-6">

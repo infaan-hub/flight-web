@@ -66,12 +66,12 @@ export default function FlightCard({ flight }: FlightCardProps) {
           {(depVariation || arrVariation) && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {depVariation && (
-                <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${depVariation.startsWith("+") ? "bg-red-100 text-red-700" : depVariation === "On time" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
+                <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${depVariation.startsWith("+") ? "bg-red-400/10 text-red-300 border border-red-400/20" : depVariation === "On time" ? "bg-green-400/10 text-green-300 border border-green-400/20" : "bg-blue-400/10 text-blue-300 border border-blue-400/20"}`}>
                   Dep {depVariation}
                 </span>
               )}
               {arrVariation && (
-                <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${arrVariation.startsWith("+") ? "bg-red-100 text-red-700" : arrVariation === "On time" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
+                <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${arrVariation.startsWith("+") ? "bg-red-400/10 text-red-300 border border-red-400/20" : arrVariation === "On time" ? "bg-green-400/10 text-green-300 border border-green-400/20" : "bg-blue-400/10 text-blue-300 border border-blue-400/20"}`}>
                   Arr {arrVariation}
                 </span>
               )}
