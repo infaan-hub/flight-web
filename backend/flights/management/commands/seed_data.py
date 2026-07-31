@@ -4,9 +4,13 @@ from datetime import datetime, timedelta
 import random
 
 class Command(BaseCommand):
-    help = 'Seed the database with sample airports and flights'
+    help = 'Seed the database with sample airports and flights (idempotent)'
     
     def handle(self, *args, **options):
+        # Idempotent: clear previous seed data first
+        Flight.objects.all().delete()
+        Airport.objects.all().delete()
+        
         airports_data = [
             {'icao': 'KJFK', 'iata': 'JFK', 'name': 'John F Kennedy International', 'city': 'New York', 'country': 'United States', 'latitude': 40.6413, 'longitude': -73.7781},
             {'icao': 'KLAX', 'iata': 'LAX', 'name': 'Los Angeles International', 'city': 'Los Angeles', 'country': 'United States', 'latitude': 33.9416, 'longitude': -118.4085},
