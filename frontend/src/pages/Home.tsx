@@ -7,13 +7,14 @@ import FlightCard from "../components/FlightCard"
 import { getLiveFlights, getTodaysFlights, getFlightStats } from "../services/api"
 import { getUserLocation, getDefaultLocation, type LocationInfo } from "../lib/geo"
 import type { LiveFlight, FlightDetail, FlightStats } from "../types"
-import { Plane, Search, Radar, TrendingUp, ArrowRight, MapPin } from "lucide-react"
+import { Plane, Search, Radar, TrendingUp, ArrowRight, MapPin, RotateCw } from "lucide-react"
 
 export default function Home() {
   const [liveFlights, setLiveFlights] = useState<LiveFlight[]>([])
   const [todaysFlights, setTodaysFlights] = useState<FlightDetail[]>([])
   const [stats, setStats] = useState<FlightStats | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState<string[]>([])
+  const [retryTick, setRetryTick] = useState(0)
   const [location, setLocation] = useState<LocationInfo>(getDefaultLocation())
 
   useEffect(() => {
@@ -21,28 +22,41 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    const fetchAll = async () => {
+    let cancelled = false
+    const load = async () => {
       const loc = location
-      const [live, today, statsData] = await Promise.all([
+      const [live, today, statsData] = await Promise.allSettled([
         getLiveFlights(loc.bounds),
         getTodaysFlights(loc.lat, loc.lng, loc.isZanzibar ? 2000 : 1200),
         getFlightStats(),
       ])
-      setLiveFlights(live.slice(0, 100))
-      setTodaysFlights(today.slice(0, 6))
-      setStats(statsData)
-      setLoading(false)
+      if (cancelled) return
+      if (live.status === "fulfilled") {
+        setLiveFlights(live.value.slice(0, 100))
+        setFailed((f) => f.filter((name) => name !== "live"))
+      } else {
+        setFailed((f) => (f.includes("live") ? f : [...f, "live"]))
+      }
+      if (today.status === "fulfilled") {
+        setTodaysFlights(today.value.slice(0, 6))
+        setFailed((f) => f.filter((name) => name !== "today"))
+      } else {
+        setFailed((f) => (f.includes("today") ? f : [...f, "today"]))
+      }
+      if (statsData.status === "fulfilled") {
+        setStats(statsData.value)
+        setFailed((f) => f.filter((name) => name !== "stats"))
+      } else {
+        setFailed((f) => (f.includes("stats") ? f : [...f, "stats"]))
+      }
     }
-    fetchAll().catch(console.error)
-  }, [location])
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [location, retryTick])
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-      </div>
-    )
-  }
+  const allFailed = failed.length === 3
 
   return (
     <div className="container-custom py-8 space-y-8">
@@ -75,28 +89,52 @@ export default function Home() {
         </div>
       </section>
 
-      {stats && (
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: "Flights Today", value: stats.total_flights_today.toLocaleString(), icon: Plane, color: "text-blue-600" },
-            { label: "In Air Now", value: stats.flights_in_air.toLocaleString(), icon: TrendingUp, color: "text-green-600" },
-            { label: "Delayed", value: stats.flights_delayed.toLocaleString(), icon: Plane, color: "text-yellow-600" },
-            { label: "Avg Delay", value: `${stats.average_delay_minutes} min`, icon: Plane, color: "text-red-600" },
-          ].map((item) => (
-            <Card key={item.label}>
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className={`p-2 rounded-lg bg-background border ${item.color}`}>
-                  <item.icon className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{item.value}</p>
-                  <p className="text-xs text-muted-foreground">{item.label}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+      {allFailed && (
+        <section className="rounded-2xl border border-destructive/40 bg-destructive/5 p-6 text-center">
+          <p className="text-muted-foreground mb-4">
+            Couldn't reach the flight data service. If this is the first request in a while, the backend may be waking up — try again.
+          </p>
+          <Button onClick={() => setRetryTick((t) => t + 1)} className="gap-2">
+            <RotateCw className="h-4 w-4" />
+            Retry
+          </Button>
         </section>
       )}
+
+      <section>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {stats
+            ? [
+                { label: "Flights Today", value: stats.total_flights_today.toLocaleString(), icon: Plane, color: "text-blue-600" },
+                { label: "In Air Now", value: stats.flights_in_air.toLocaleString(), icon: TrendingUp, color: "text-green-600" },
+                { label: "Delayed", value: stats.flights_delayed.toLocaleString(), icon: Plane, color: "text-yellow-600" },
+                { label: "Avg Delay", value: `${stats.average_delay_minutes} min`, icon: Plane, color: "text-red-600" },
+              ].map((item) => (
+                <Card key={item.label}>
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className={`p-2 rounded-lg bg-background border ${item.color}`}>
+                      <item.icon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{item.value}</p>
+                      <p className="text-xs text-muted-foreground">{item.label}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            : Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-lg bg-muted animate-pulse" />
+                    <div className="space-y-2 flex-1">
+                      <div className="h-6 w-16 bg-muted rounded animate-pulse" />
+                      <div className="h-3 w-20 bg-muted rounded animate-pulse" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+        </div>
+      </section>
 
       <section>
         <div className="flex items-center justify-between mb-4">
@@ -135,9 +173,19 @@ export default function Home() {
           </Link>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {todaysFlights.map((flight) => (
-            <FlightCard key={flight.flight_number} flight={flight} />
-          ))}
+          {todaysFlights.length > 0
+            ? todaysFlights.map((flight) => (
+                <FlightCard key={flight.flight_number} flight={flight} />
+              ))
+            : Array.from({ length: 3 }).map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="h-4 w-2/3 bg-muted rounded animate-pulse" />
+                    <div className="h-4 w-1/2 bg-muted rounded animate-pulse" />
+                    <div className="h-8 w-24 bg-muted rounded animate-pulse" />
+                  </CardContent>
+                </Card>
+              ))}
         </div>
       </section>
     </div>

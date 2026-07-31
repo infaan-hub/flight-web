@@ -11,26 +11,42 @@ const counters = new Map<string, number>()
  * latest FOR THE SAME ENDPOINT is considered stale and throws, so old
  * responses never overwrite newer ones at the call site (concurrent calls to
  * different endpoints are unaffected).
+ *
+ * On timeout, retries once: the backend on Render's free tier sleeps when
+ * idle, so the first request often aborts while the server cold-starts, and
+ * the retry then succeeds quickly.
  */
 export async function fetchJSON<T>(
   url: string,
-  opts: { timeoutMs?: number; expectLatest?: boolean } = {}
+  opts: { timeoutMs?: number; expectLatest?: boolean; retries?: number } = {}
 ): Promise<T> {
-  const { timeoutMs = DEFAULT_TIMEOUT_MS, expectLatest = false } = opts
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, expectLatest = false, retries = 1 } = opts
   const pathKey = url.split('?')[0]
   const myId = expectLatest ? (counters.get(pathKey) ?? 0) + 1 : 0
   if (expectLatest) counters.set(pathKey, myId)
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
-  try {
-    const res = await fetch(url, { signal: controller.signal })
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`)
-    if (expectLatest && myId !== counters.get(pathKey)) {
-      throw new Error('Stale response ignored')
+  let attempt = 0
+  for (;;) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      const res = await fetch(url, { signal: controller.signal })
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+      if (expectLatest && myId !== counters.get(pathKey)) {
+        throw new Error('Stale response ignored')
+      }
+      return res.json()
+    } catch (err) {
+      if (attempt < retries && err instanceof DOMException && err.name === 'AbortError') {
+        attempt += 1
+        continue
+      }
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        throw new Error(`Request timed out after ${(timeoutMs * (attempt + 1)) / 1000}s`)
+      }
+      throw err
+    } finally {
+      clearTimeout(timer)
     }
-    return res.json()
-  } finally {
-    clearTimeout(timer)
   }
 }
 
