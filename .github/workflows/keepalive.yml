@@ -1,0 +1,27 @@
+name: Keepalive - Wake Backend & Database
+
+on:
+  schedule:
+    # Runs every 10 minutes - keeps Render backend + Neon DB awake
+    - cron: "*/10 * * * *"
+  workflow_dispatch: # allows manual trigger from GitHub Actions tab
+
+jobs:
+  keep-alive:
+    name: Ping backend API
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping flights endpoint (DB-backed)
+        run: |
+          # /api/airports/ performs a real database query,
+          # waking up both the Render service and Neon database.
+          HTTP_CODE=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 30 \
+            https://flight-web-t6ia.onrender.com/api/airports/ || echo "000")
+          echo "Backend responded with HTTP $HTTP_CODE"
+          if [ "$HTTP_CODE" = "000" ]; then
+            echo "::warning::Backend unreachable - service may be spinning up, will retry next cycle."
+          elif [ "$HTTP_CODE" = "200" ]; then
+            echo "::notice::Backend + database are awake."
+          else
+            echo "::warning::Unexpected status $HTTP_CODE - check the service logs."
+          fi
