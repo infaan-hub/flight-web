@@ -3,26 +3,29 @@ import type { LiveFlight, FlightDetail, FlightStats, Airport, FlightTrack } from
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 const DEFAULT_TIMEOUT_MS = 15000
 
-let requestCounter = 0
+const counters = new Map<string, number>()
 
 /**
  * Fetch JSON with a timeout. Returns the response AND a stale guard:
  * when `expectLatest` is used, a response whose request id is no longer the
- * latest is considered stale and throws, so old responses never overwrite
- * newer ones at the call site.
+ * latest FOR THE SAME ENDPOINT is considered stale and throws, so old
+ * responses never overwrite newer ones at the call site (concurrent calls to
+ * different endpoints are unaffected).
  */
 export async function fetchJSON<T>(
   url: string,
   opts: { timeoutMs?: number; expectLatest?: boolean } = {}
 ): Promise<T> {
   const { timeoutMs = DEFAULT_TIMEOUT_MS, expectLatest = false } = opts
-  const myId = ++requestCounter
+  const pathKey = url.split('?')[0]
+  const myId = expectLatest ? (counters.get(pathKey) ?? 0) + 1 : 0
+  if (expectLatest) counters.set(pathKey, myId)
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
     const res = await fetch(url, { signal: controller.signal })
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`)
-    if (expectLatest && myId !== requestCounter) {
+    if (expectLatest && myId !== counters.get(pathKey)) {
       throw new Error('Stale response ignored')
     }
     return res.json()
