@@ -1,43 +1,27 @@
 import { useState, useEffect, Suspense, lazy } from "react"
 import { useParams, Link } from "react-router-dom"
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
-import { Badge } from "../components/ui/badge"
+import { motion } from "framer-motion"
 import { Button } from "../components/ui/button"
-import { Separator } from "../components/ui/separator"
 const FlightMap = lazy(() => import("../components/FlightMap"))
 import { getFlightDetail, getFlightTrack } from "../services/api"
 import type { FlightDetail as FlightDetailType, LiveFlight, FlightTrack } from "../types"
 import {
-  Plane,
-  MapPin,
-  Clock,
-  Calendar,
-  Building2,
-  Loader2,
-  Compass,
-  Gauge,
-  ArrowUp,
-  ArrowLeft,
-  Route,
-  Info,
-  Luggage,
+  Plane, MapPin, Clock, Calendar, Building2, Loader2, Compass, Gauge, ArrowUp, ArrowLeft, Route, Info, Luggage,
 } from "lucide-react"
 import {
-  STATUS_STATES,
-  normalizeStatusState,
-  statusStateMeta,
-  delayVariation,
-  formatUtcTime,
-  formatLocalApprox,
+  STATUS_STATES, normalizeStatusState, delayVariation, formatUtcTime, formatLocalApprox,
 } from "../lib/flight"
 import { routeProgress, distanceToDestination, routeDistanceKm } from "../lib/routes"
 import type { Airport } from "../types"
+import PageHero from "../components/ui/PageHero"
+import GlassCard from "../components/ui/GlassCard"
+import AnimatedSection from "../components/ui/AnimatedSection"
+import RadarLoader from "../components/ui/RadarLoader"
+import StatusBadge from "../components/ui/StatusBadge"
+import CloudLayer from "../components/cinema/CloudLayer"
 
 function TimeBlock({
-  label,
-  iso,
-  lng,
-  highlight,
+  label, iso, lng, highlight,
 }: {
   label: string
   iso?: string | null
@@ -48,16 +32,21 @@ function TimeBlock({
   const local = formatLocalApprox(iso, lng)
   const utc = formatUtcTime(iso)
   return (
-    <div className="flex items-start gap-2">
-      <Clock className={`h-4 w-4 mt-0.5 ${highlight ? "text-green-400" : "text-muted-foreground"}`} />
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="flex items-start gap-2.5"
+    >
+      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${highlight ? "bg-emerald-400/15 text-emerald-300" : "bg-white/5 text-slate-400"}`}>
+        <Clock className="h-3.5 w-3.5" />
+      </span>
       <div>
-        <p className="text-muted-foreground">{label}</p>
-        <p className={`font-medium ${highlight ? "text-green-300" : ""}`}>
-          {local || utc}
-        </p>
-        <p className="text-xs text-muted-foreground">{utc}</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className={`font-medium ${highlight ? "text-emerald-300" : ""}`}>{local || utc}</p>
+        <p className="text-[11px] text-muted-foreground">{utc}</p>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -83,15 +72,17 @@ function StatusTimeline({ flight }: { flight: FlightDetailType }) {
 
   if (current === "Canceled" || current === "Diverted") {
     return (
-      <div
-        className={`rounded-lg border px-4 py-3 text-sm font-medium ${
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className={`rounded-xl border px-4 py-3 text-sm font-medium ${
           current === "Canceled"
             ? "border-red-400/20 bg-red-400/10 text-red-300"
             : "border-orange-400/20 bg-orange-400/10 text-orange-300"
         }`}
       >
         This flight is {current.toLowerCase()}.
-      </div>
+      </motion.div>
     )
   }
 
@@ -109,28 +100,37 @@ function StatusTimeline({ flight }: { flight: FlightDetailType }) {
         const reached = currentIdx >= i
         const isLast = i === STATUS_STATES.length - 1
         return (
-          <div key={state} className="flex-1 flex items-start gap-2 min-w-0">
+          <motion.div
+            key={state}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, delay: i * 0.12 }}
+            className="flex min-w-0 flex-1 items-start gap-2"
+          >
             <div className="flex flex-col items-center gap-1">
-              <div
-                className={`h-3 w-3 rounded-full shrink-0 ${
-                  reached ? "bg-green-500" : "bg-muted border border-muted-foreground/30"
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 400, damping: 18, delay: 0.2 + i * 0.12 }}
+                className={`relative flex h-3 w-3 shrink-0 items-center justify-center rounded-full ${
+                  reached ? "bg-emerald-500" : "bg-muted"
                 }`}
-              />
+              >
+                {reached && (
+                  <span className="pulse-ring absolute inset-0 text-emerald-400" />
+                )}
+              </motion.span>
               {!isLast && (
-                <div className={`w-0.5 flex-1 min-h-6 ${reached ? "bg-green-500" : "bg-muted"}`} />
+                <div className={`min-h-6 w-0.5 flex-1 ${reached ? "bg-gradient-to-b from-emerald-500 to-emerald-400/30" : "bg-muted"}`} />
               )}
             </div>
-            <div className="pb-2 min-w-0">
-              <p className={`text-xs font-semibold ${reached ? "text-green-300" : "text-muted-foreground"}`}>
-                {state}
-              </p>
+            <div className="min-w-0 pb-2">
+              <p className={`text-xs font-semibold ${reached ? "text-emerald-300" : "text-muted-foreground"}`}>{state}</p>
               {stepTimes[state] && (
-                <p className="text-[11px] text-muted-foreground">
-                  {formatUtcTime(stepTimes[state])}
-                </p>
+                <p className="text-[11px] text-muted-foreground">{formatUtcTime(stepTimes[state])}</p>
               )}
             </div>
-          </div>
+          </motion.div>
         )
       })}
     </div>
@@ -139,14 +139,12 @@ function StatusTimeline({ flight }: { flight: FlightDetailType }) {
 
 function DataTransparencyNote() {
   return (
-    <Card className="bg-muted/40">
-      <CardContent className="p-4 text-xs text-muted-foreground space-y-1.5">
+    <GlassCard className="border-sky-400/10 p-5">
+      <div className="space-y-1.5 text-xs leading-relaxed text-muted-foreground">
         <p className="flex items-center gap-1.5 font-semibold text-foreground">
-          <Info className="h-3.5 w-3.5" /> About this data
+          <Info className="h-3.5 w-3.5 text-sky-400" /> About this data
         </p>
-        <p>
-          Statuses follow the standard flight lifecycle: Scheduled → Departed gate → In air → Landed → At gate.
-        </p>
+        <p>Statuses follow the standard flight lifecycle: Scheduled → Departed gate → In air → Landed → At gate.</p>
         <p>
           Live positions come from crowdsourced ADS-B receivers. Coverage can be missing over oceans and remote
           regions, where positions are estimated and may lag. Dimmed markers and "Estimated position" notes mark
@@ -157,8 +155,8 @@ function DataTransparencyNote() {
           "Estimated" is the current best prediction; "Scheduled" is the timetable; a delay under 5 minutes counts
           as on time.
         </p>
-      </CardContent>
-    </Card>
+      </div>
+    </GlassCard>
   )
 }
 
@@ -182,7 +180,6 @@ function TrackSvg({ track }: { track: FlightTrack }) {
     alt: p.altitude,
   }))
 
-  // Phase coloring: climb/descent below 10k ft, transition 10k-25k, cruise above.
   const band = (alt: number | null): string => {
     if (alt == null || alt < 10000) return "#94a3b8"
     if (alt < 25000) return "#22d3ee"
@@ -197,9 +194,18 @@ function TrackSvg({ track }: { track: FlightTrack }) {
   const first = coords[0]
   const last = coords[coords.length - 1]
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full">
       {Object.entries(bandDots).map(([color, pts]) => (
-        <polyline key={color} points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
+        <polyline
+          key={color}
+          points={pts}
+          fill="none"
+          stroke={color}
+          strokeWidth="2"
+          strokeLinejoin="round"
+          className="route-flow"
+          style={{ strokeDasharray: "6 6" }}
+        />
       ))}
       <circle cx={first.x} cy={first.y} r={4} fill="#94a3b8" />
       <circle cx={last.x} cy={last.y} r={5} fill="#2563eb" stroke="#ffffff" strokeWidth="1.5" />
@@ -234,24 +240,22 @@ export default function FlightDetail() {
   }, [flight?.icao24])
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    )
+    return <RadarLoader label="Fetching flight data" />
   }
 
   if (error || !flight) {
     return (
-      <div className="container-custom py-8 text-center">
-        <Plane className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-        <h2 className="text-2xl font-bold mb-2">Flight Not Found</h2>
-        <p className="text-muted-foreground mb-4">{error || "No flight data available"}</p>
-        <Link to="/search">
-          <Button variant="outline" className="gap-2">
-            <ArrowLeft className="h-4 w-4" /> Search Again
-          </Button>
-        </Link>
+      <div className="container-custom py-24 text-center">
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+          <Plane className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
+          <h2 className="text-2xl font-bold">Flight Not Found</h2>
+          <p className="mb-4 text-muted-foreground">{error || "No flight data available"}</p>
+          <Link to="/search">
+            <Button variant="outline" className="gap-2">
+              <ArrowLeft className="h-4 w-4" /> Search Again
+            </Button>
+          </Link>
+        </motion.div>
       </div>
     )
   }
@@ -317,311 +321,342 @@ export default function FlightDetail() {
         )
       : null
 
-  const state = statusStateMeta(flight.status_state || flight.status)
   const depVariation = delayVariation(flight.departure_time_scheduled, flight.departure_time_actual || flight.departure_time_estimated)
   const arrVariation = delayVariation(flight.arrival_time_scheduled, flight.arrival_time_actual || flight.arrival_time_estimated)
 
+  const variationChip = (v: string | null) => {
+    if (!v) return null
+    const tone = v.startsWith("+")
+      ? "bg-red-400/10 text-red-300 border-red-400/25"
+      : v === "On time"
+        ? "bg-emerald-400/10 text-emerald-300 border-emerald-400/25"
+        : "bg-sky-400/10 text-sky-300 border-sky-400/25"
+    return <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${tone}`}>{v}</span>
+  }
+
+  const statCards = [
+    { icon: ArrowUp, label: "Altitude", value: flight.altitude ? `${Math.round(flight.altitude).toLocaleString()} ft` : null, color: "text-sky-400 bg-sky-400/10" },
+    { icon: Gauge, label: "Speed", value: flight.speed ? `${Math.round(flight.speed)} kts` : null, color: "text-emerald-400 bg-emerald-400/10" },
+    { icon: Compass, label: "Heading", value: flight.heading ? `${flight.heading}°` : null, color: "text-purple-400 bg-purple-400/10" },
+  ].filter((s) => s.value)
+
   return (
-    <div className="container-custom py-8 space-y-6">
-      <Link to="/flights">
-        <Button variant="ghost" size="sm" className="gap-2">
-          <ArrowLeft className="h-4 w-4" /> Back to Flights
-        </Button>
-      </Link>
-
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-primary/10">
-            <Plane className="h-8 w-8 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold">{flight.flight_number}</h1>
-            <p className="text-muted-foreground">
-              {flight.airline}
-              {flight.flight_icao && flight.flight_icao !== flight.flight_number
-                ? ` · callsign ${flight.flight_icao}`
-                : ""}
-            </p>
-          </div>
+    <div className="space-y-8">
+      <PageHero
+        kicker={`${flight.airline} · ${flight.flight_date}`}
+        video="pinkSunset"
+        title={
+          <>
+            {flight.flight_number} <span className="text-gradient-sky">flight story</span>
+          </>
+        }
+        description={
+          <>
+            {flight.airline}
+            {flight.flight_icao && flight.flight_icao !== flight.flight_number ? ` · callsign ${flight.flight_icao}` : ""}
+          </>
+        }
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <StatusBadge status={flight.status_state || flight.status} pulse />
+          {variationChip(depVariation)}
+          {variationChip(arrVariation)}
+          {flight.is_stale && (
+            <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-2.5 py-1 text-xs font-semibold text-amber-300">
+              Position stale — last data may be up to an hour old
+            </span>
+          )}
+          {flight.position_jump && (
+            <span className="rounded-full border border-orange-400/25 bg-orange-400/10 px-2.5 py-1 text-xs font-semibold text-orange-300">
+              Unusual position jump detected
+            </span>
+          )}
         </div>
-        <Badge className={`text-sm px-4 py-1.5 ${state.badge}`}>{state.label}</Badge>
-      </div>
+      </PageHero>
 
-      {hasLivePosition && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5 text-primary" />
-              Live Position
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Suspense
-              fallback={
-                <div className="w-full h-[500px] rounded-lg border bg-muted animate-pulse" />
-              }
-            >
-              <FlightMap
-                flights={liveFlightData}
-                center={[flight.latitude || 30, flight.longitude || 0]}
-                zoom={6}
-                route={{ origin: depInfo, destination: arrInfo, track }}
-              />
-            </Suspense>
-            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-              <Route className="h-3.5 w-3.5" />
-              {track && track.path.length > 1
-                ? "Cyan line: actual flight path (from ADS-B history)."
-                : "Dashed line: planned great-circle route (shortest path); no flight history available yet."}
+      <div className="container-custom space-y-6">
+        <Link to="/flights" className="inline-flex items-center gap-1.5 text-sm text-slate-400 transition-colors hover:text-sky-300">
+          <ArrowLeft className="h-4 w-4" /> Back to flights
+        </Link>
+
+        {/* Route banner */}
+        <AnimatedSection>
+          <GlassCard strong className="relative overflow-hidden p-6 md:p-8">
+            <CloudLayer density={2} intensity={0.4} />
+            <div className="relative z-10 grid items-center gap-6 md:grid-cols-[1fr_auto_1fr]">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.7 }}
+                className="text-center md:text-left"
+              >
+                <p className="font-display text-4xl font-bold tracking-tight md:text-5xl">{airportCode(flight, "departure")}</p>
+                <p className="mt-1 text-sm text-slate-400">{flight.departure_airport_name}</p>
+                <p className="text-xs text-slate-500">{flight.departure_city}, {flight.departure_country}</p>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.25 }}
+                className="flex flex-col items-center"
+              >
+                <div className="relative w-40 md:w-56">
+                  <div className="h-px w-full bg-gradient-to-r from-sky-400/60 via-sky-400 to-blue-500/60" />
+                  <motion.span
+                    className="absolute -top-[9px] left-0"
+                    animate={{ left: ["0%", "calc(100% - 16px)"] }}
+                    transition={{ duration: 2.4, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
+                  >
+                    <Plane className="h-4 w-4 rotate-90 text-sky-400" />
+                  </motion.span>
+                </div>
+                {progress != null && (
+                  <p className="mt-3 font-grotesk text-xs font-semibold uppercase tracking-[0.25em] text-emerald-300">
+                    {Math.round(progress * 100)}% complete
+                  </p>
+                )}
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.7, delay: 0.1 }}
+                className="text-center md:text-right"
+              >
+                <p className="font-display text-4xl font-bold tracking-tight md:text-5xl">{airportCode(flight, "arrival")}</p>
+                <p className="mt-1 text-sm text-slate-400">{flight.arrival_airport_name}</p>
+                <p className="text-xs text-slate-500">{flight.arrival_city}, {flight.arrival_country}</p>
+              </motion.div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </GlassCard>
+        </AnimatedSection>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Clock className="h-5 w-5 text-primary" />
-            Flight Progress &amp; Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <StatusTimeline flight={flight} />
-          {progress != null && (
-            <div>
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>Route completed</span>
-                <span>{Math.round(progress * 100)}%</span>
-              </div>
-              <div className="h-2 rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-green-500 transition-all"
-                  style={{ width: `${Math.max(2, Math.round(progress * 100))}%` }}
-                />
-              </div>
-              <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                <span>
-                  {distTotal != null ? `${Math.round(distTotal).toLocaleString()} km total` : ""}
+        {/* Live position map */}
+        {hasLivePosition && (
+          <AnimatedSection>
+            <GlassCard className="p-1.5">
+              <div className="flex items-center gap-2 px-4 py-3">
+                <MapPin className="h-4 w-4 text-sky-400" />
+                <h2 className="font-display text-base font-bold">Live position</h2>
+                <span className="ml-auto flex items-center gap-1.5 text-xs text-emerald-300">
+                  <span className="relative flex h-2 w-2">
+                    <span className="pulse-ring absolute inset-0 text-emerald-400" />
+                    <span className="relative h-2 w-2 rounded-full bg-emerald-400" />
+                  </span>
+                  Tracking
                 </span>
-                {distRemaining != null && (
-                  <span>{Math.round(distRemaining).toLocaleString()} km remaining</span>
+              </div>
+              <Suspense fallback={<div className="skeleton h-[500px] w-full rounded-xl" />}>
+                <FlightMap
+                  flights={liveFlightData}
+                  center={[flight.latitude || 30, flight.longitude || 0]}
+                  zoom={6}
+                  route={{ origin: depInfo, destination: arrInfo, track }}
+                />
+              </Suspense>
+              <div className="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground">
+                <Route className="h-3.5 w-3.5" />
+                {track && track.path.length > 1
+                  ? "Cyan line: actual flight path (from ADS-B history)."
+                  : "Dashed line: planned great-circle route (shortest path); no flight history available yet."}
+              </div>
+            </GlassCard>
+          </AnimatedSection>
+        )}
+
+        {/* Status + progress */}
+        <AnimatedSection>
+          <GlassCard className="p-6">
+            <h2 className="font-display flex items-center gap-2 text-base font-bold">
+              <Clock className="h-5 w-5 text-sky-400" />
+              Flight progress &amp; status
+            </h2>
+            <div className="mt-6">
+              <StatusTimeline flight={flight} />
+            </div>
+            {progress != null && (
+              <div className="mt-4">
+                <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">
+                  <span>Route completed</span>
+                  <span className="tabular-nums">{Math.round(progress * 100)}%</span>
+                </div>
+                <div className="h-2.5 overflow-hidden rounded-full bg-white/5">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.max(2, Math.round(progress * 100))}%` }}
+                    transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.5)]"
+                  />
+                </div>
+                <div className="mt-1.5 flex justify-between text-xs text-muted-foreground">
+                  <span>{distTotal != null ? `${Math.round(distTotal).toLocaleString()} km total` : ""}</span>
+                  {distRemaining != null && <span className="tabular-nums">{Math.round(distRemaining).toLocaleString()} km remaining</span>}
+                </div>
+              </div>
+            )}
+          </GlassCard>
+        </AnimatedSection>
+
+        {/* Trail */}
+        {trackLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-sky-400" />
+          </div>
+        ) : track && track.path.length >= 2 ? (
+          <AnimatedSection>
+            <GlassCard className="p-6">
+              <h2 className="font-display flex items-center gap-2 text-base font-bold">
+                <Route className="h-5 w-5 text-sky-400" />
+                Flight trail
+                <span className="text-xs font-normal text-muted-foreground">
+                  {track.path.length} positions
+                  {track.startTime ? ` · ${new Date(track.startTime * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}
+                  {" → "}
+                  {track.endTime ? new Date(track.endTime * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
+                </span>
+              </h2>
+              <div className="mt-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+                <TrackSvg track={track} />
+              </div>
+              <div className="mt-3 flex items-center gap-4 text-[11px] text-muted-foreground">
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-slate-400" /> Below 10k ft</span>
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-cyan-400" /> 10k–25k ft</span>
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-blue-600" /> Cruise</span>
+              </div>
+            </GlassCard>
+          </AnimatedSection>
+        ) : null}
+
+        {/* Live telemetry */}
+        {statCards.length > 0 && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {statCards.map((s, i) => (
+              <AnimatedSection key={s.label} delay={i * 0.08}>
+                <GlassCard maxTilt={4} className="flex items-center gap-4 p-5">
+                  <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${s.color}`}>
+                    <s.icon className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-sm text-muted-foreground">{s.label}</p>
+                    <p className="font-display text-xl font-bold tabular-nums">{s.value}</p>
+                  </div>
+                </GlassCard>
+              </AnimatedSection>
+            ))}
+          </div>
+        )}
+
+        {/* Departure / Arrival */}
+        <div className="grid gap-6 md:grid-cols-2">
+          <AnimatedSection>
+            <GlassCard className="h-full p-6">
+              <h2 className="font-display flex items-center gap-2 text-base font-bold">
+                <Plane className="h-5 w-5 rotate-45 text-sky-400" />
+                Departure
+              </h2>
+              <div className="mt-5">
+                <p className="font-display text-3xl font-bold">{airportCode(flight, "departure")}</p>
+                <p className="mt-1 text-sm text-slate-400">{flight.departure_airport_name} · {flight.departure_city}, {flight.departure_country}</p>
+              </div>
+              <div className="mt-6 grid grid-cols-2 gap-4 border-t border-white/5 pt-5 text-sm">
+                <TimeBlock label="Scheduled" iso={flight.departure_time_scheduled} lng={airportLng(flight, "departure")} />
+                <TimeBlock label="Estimated" iso={flight.departure_time_estimated} lng={airportLng(flight, "departure")} highlight={!!flight.departure_time_actual} />
+                <TimeBlock label="Actual" iso={flight.departure_time_actual} lng={airportLng(flight, "departure")} highlight />
+                {flight.departure_terminal && (
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-slate-400"><Building2 className="h-3.5 w-3.5" /></span>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Terminal</p>
+                      <p className="font-medium">{flight.departure_terminal}</p>
+                    </div>
+                  </div>
+                )}
+                {flight.departure_gate && (
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-slate-400"><MapPin className="h-3.5 w-3.5" /></span>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Gate</p>
+                      <p className="font-medium">{flight.departure_gate}</p>
+                    </div>
+                  </div>
                 )}
               </div>
-            </div>
-          )}
-          <div className="flex flex-wrap gap-2 text-xs">
-            {depVariation && (
-              <span className={`px-2 py-1 rounded-full font-medium ${depVariation.startsWith("+") ? "bg-red-400/10 text-red-300 border border-red-400/20" : depVariation === "On time" ? "bg-green-400/10 text-green-300 border border-green-400/20" : "bg-blue-400/10 text-blue-300 border border-blue-400/20"}`}>
-                Departure: {depVariation}
-              </span>
-            )}
-            {arrVariation && (
-              <span className={`px-2 py-1 rounded-full font-medium ${arrVariation.startsWith("+") ? "bg-red-400/10 text-red-300 border border-red-400/20" : arrVariation === "On time" ? "bg-green-400/10 text-green-300 border border-green-400/20" : "bg-blue-400/10 text-blue-300 border border-blue-400/20"}`}>
-                Arrival: {arrVariation}
-              </span>
-            )}
-            {flight.is_stale && (
-              <span className="px-2 py-1 rounded-full font-medium bg-amber-400/10 text-amber-300 border border-amber-400/20">
-                Position stale — last data may be up to an hour old
-              </span>
-            )}
-            {flight.position_jump && (
-              <span className="px-2 py-1 rounded-full font-medium bg-orange-400/10 text-orange-300 border border-orange-400/20">
-                Unusual position jump detected
-              </span>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            </GlassCard>
+          </AnimatedSection>
 
-      {trackLoading ? (
-        <div className="flex justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <AnimatedSection delay={0.1}>
+            <GlassCard className="h-full p-6">
+              <h2 className="font-display flex items-center gap-2 text-base font-bold">
+                <Plane className="h-5 w-5 -rotate-45 text-sky-400" />
+                Arrival
+              </h2>
+              <div className="mt-5">
+                <p className="font-display text-3xl font-bold">{airportCode(flight, "arrival")}</p>
+                <p className="mt-1 text-sm text-slate-400">{flight.arrival_airport_name} · {flight.arrival_city}, {flight.arrival_country}</p>
+              </div>
+              <div className="mt-6 grid grid-cols-2 gap-4 border-t border-white/5 pt-5 text-sm">
+                <TimeBlock label="Scheduled" iso={flight.arrival_time_scheduled} lng={airportLng(flight, "arrival")} />
+                <TimeBlock label="Estimated" iso={flight.arrival_time_estimated} lng={airportLng(flight, "arrival")} highlight={!!flight.arrival_time_actual} />
+                <TimeBlock label="Actual" iso={flight.arrival_time_actual} lng={airportLng(flight, "arrival")} highlight />
+                {flight.arrival_terminal && (
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-slate-400"><Building2 className="h-3.5 w-3.5" /></span>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Terminal</p>
+                      <p className="font-medium">{flight.arrival_terminal}</p>
+                    </div>
+                  </div>
+                )}
+                {flight.arrival_gate && (
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-slate-400"><MapPin className="h-3.5 w-3.5" /></span>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Gate</p>
+                      <p className="font-medium">{flight.arrival_gate}</p>
+                    </div>
+                  </div>
+                )}
+                {flight.arrival_baggage && (
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-slate-400"><Luggage className="h-3.5 w-3.5" /></span>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Baggage</p>
+                      <p className="font-medium">Carousel {flight.arrival_baggage}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </GlassCard>
+          </AnimatedSection>
         </div>
-      ) : track && track.path.length >= 2 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Route className="h-5 w-5 text-primary" />
-              Flight Trail
-              <span className="text-xs font-normal text-muted-foreground">
-                {track.path.length} positions
-                {track.startTime ? ` · ${new Date(track.startTime * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}
-                {" → "}
-                {track.endTime ? new Date(track.endTime * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TrackSvg track={track} />
-            <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-slate-400" /> Below 10k ft</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-cyan-400" /> 10k–25k ft</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-blue-600" /> Cruise</span>
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
 
-      <div className="grid md:grid-cols-3 gap-4">
-        {flight.altitude && (
-          <Card>
-            <CardContent className="p-4 flex items-center gap-3">
-              <ArrowUp className="h-5 w-5 text-sky-400" />
-              <div>
-                <p className="text-sm text-muted-foreground">Altitude</p>
-                <p className="text-lg font-bold">{Math.round(flight.altitude).toLocaleString()} ft</p>
+        {/* Aircraft info */}
+        {flight.aircraft_type && (
+          <AnimatedSection>
+            <GlassCard className="p-6">
+              <h2 className="font-display flex items-center gap-2 text-base font-bold">
+                <Calendar className="h-5 w-5 text-sky-400" />
+                Aircraft information
+              </h2>
+              <div className="mt-5 grid gap-4 text-sm sm:grid-cols-3">
+                <div className="rounded-xl bg-white/[0.03] p-4">
+                  <p className="text-xs text-muted-foreground">Aircraft type</p>
+                  <p className="mt-1 font-medium">{flight.aircraft_type}</p>
+                </div>
+                <div className="rounded-xl bg-white/[0.03] p-4">
+                  <p className="text-xs text-muted-foreground">Flight date</p>
+                  <p className="mt-1 font-medium">{flight.flight_date}</p>
+                </div>
+                <div className="rounded-xl bg-white/[0.03] p-4">
+                  <p className="text-xs text-muted-foreground">Airline</p>
+                  <p className="mt-1 font-medium">{flight.airline}</p>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            </GlassCard>
+          </AnimatedSection>
         )}
-        {flight.speed && (
-          <Card>
-            <CardContent className="p-4 flex items-center gap-3">
-              <Gauge className="h-5 w-5 text-emerald-400" />
-              <div>
-                <p className="text-sm text-muted-foreground">Speed</p>
-                <p className="text-lg font-bold">{Math.round(flight.speed)} kts</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        {flight.heading && (
-          <Card>
-            <CardContent className="p-4 flex items-center gap-3">
-              <Compass className="h-5 w-5 text-purple-400" />
-              <div>
-                <p className="text-sm text-muted-foreground">Heading</p>
-                <p className="text-lg font-bold">{flight.heading}°</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+
+        <DataTransparencyNote />
       </div>
-
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plane className="h-5 w-5 text-primary" />
-              Departure
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-3xl font-bold">{airportCode(flight, "departure")}</p>
-              <p className="text-muted-foreground">{flight.departure_airport_name}</p>
-              <p className="text-sm text-muted-foreground">
-                {flight.departure_city}, {flight.departure_country}
-              </p>
-            </div>
-            <Separator />
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <TimeBlock label="Scheduled" iso={flight.departure_time_scheduled} lng={airportLng(flight, "departure")} />
-              <TimeBlock label="Estimated" iso={flight.departure_time_estimated} lng={airportLng(flight, "departure")} highlight={!!flight.departure_time_actual} />
-              <TimeBlock label="Actual" iso={flight.departure_time_actual} lng={airportLng(flight, "departure")} highlight />
-              {flight.departure_terminal && (
-                <div className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-muted-foreground">Terminal</p>
-                    <p className="font-medium">{flight.departure_terminal}</p>
-                  </div>
-                </div>
-              )}
-              {flight.departure_gate && (
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-muted-foreground">Gate</p>
-                    <p className="font-medium">{flight.departure_gate}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plane className="h-5 w-5 text-primary" />
-              Arrival
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-3xl font-bold">{airportCode(flight, "arrival")}</p>
-              <p className="text-muted-foreground">{flight.arrival_airport_name}</p>
-              <p className="text-sm text-muted-foreground">
-                {flight.arrival_city}, {flight.arrival_country}
-              </p>
-            </div>
-            <Separator />
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <TimeBlock label="Scheduled" iso={flight.arrival_time_scheduled} lng={airportLng(flight, "arrival")} />
-              <TimeBlock label="Estimated" iso={flight.arrival_time_estimated} lng={airportLng(flight, "arrival")} highlight={!!flight.arrival_time_actual} />
-              <TimeBlock label="Actual" iso={flight.arrival_time_actual} lng={airportLng(flight, "arrival")} highlight />
-              {flight.arrival_terminal && (
-                <div className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-muted-foreground">Terminal</p>
-                    <p className="font-medium">{flight.arrival_terminal}</p>
-                  </div>
-                </div>
-              )}
-              {flight.arrival_gate && (
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-muted-foreground">Gate</p>
-                    <p className="font-medium">{flight.arrival_gate}</p>
-                  </div>
-                </div>
-              )}
-              {flight.arrival_baggage && (
-                <div className="flex items-center gap-2">
-                  <Luggage className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-muted-foreground">Baggage</p>
-                    <p className="font-medium">Carousel {flight.arrival_baggage}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {flight.aircraft_type && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-primary" />
-              Aircraft Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid sm:grid-cols-3 gap-4 text-sm">
-              <div>
-                <p className="text-muted-foreground">Aircraft Type</p>
-                <p className="font-medium">{flight.aircraft_type}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Flight Date</p>
-                <p className="font-medium">{flight.flight_date}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Airline</p>
-                <p className="font-medium">{flight.airline}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <DataTransparencyNote />
     </div>
   )
 }

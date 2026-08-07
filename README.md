@@ -1,4 +1,4 @@
-﻿# ZanflightGO â€” Flight Information System
+﻿# ZanflightGO — Flight Information System
 
 Live flight tracking with a Mapbox map. Django + DRF backend, React (Vite) frontend.
 
@@ -17,8 +17,8 @@ requirements.txt   Root requirements shim for manual Web Service builds
 | Source | Use | Quota |
 |---|---|---|
 | OpenSky Network | Live positions, flight trail (`/tracks`) | 400 req/day anonymous, ~4000/day with API client |
-| AviationStack | Schedules, airport arrivals/departures boards | 500 req/month (free) â€” responses cached 10 min |
-| Local DB (seed) | "Today's flights" near a location | â€” |
+| AviationStack | Schedules, airport arrivals/departures boards | 500 req/month (free) — responses cached 10 min |
+| Local DB (seed) | "Today's flights" near a location | — |
 
 OpenSky fallback order: authenticated OAuth2 token â†’ anonymous â†’ bundled sample data.
 
@@ -120,7 +120,7 @@ After the first Blueprint deploy, set the `sync: false` vars in the dashboard:
 
 - Backend service: `AVIATIONSTACK_API_KEY`, `OPENSKY_CLIENT_ID`,
   `OPENSKY_CLIENT_SECRET`
-- Frontend service: `VITE_MAPBOX_TOKEN` (then trigger a rebuild â€” Vite bakes
+- Frontend service: `VITE_MAPBOX_TOKEN` (then trigger a rebuild — Vite bakes
   env into the bundle at build time)
 - Add the frontend's own onrender.com URL to `CORS_ALLOWED_ORIGINS`
 
@@ -139,9 +139,9 @@ same env vars above in each service.
   site URL in the Mapbox dashboard (Account â†’ Tokens â†’ URL restrictions) so it
   cannot be used by others.
 - **OpenSky credentials**: if you see `unauthorized_client` (401) in the logs,
-  regenerate the API client at https://opensky-network.org â€” the current client
+  regenerate the API client at https://opensky-network.org — the current client
   id/secret pair is rejected by OpenSky's auth server.
-- `npm audit` reports GHSA-qwww-vcr4-c8h2 (react-router 7.12.0â€“8.2.0, RSC-mode
+- `npm audit` reports GHSA-qwww-vcr4-c8h2 (react-router 7.12.0—8.2.0, RSC-mode
   CSRF). ZanflightGO is a plain SPA (`BrowserRouter`, no React Server Components),
   so the advisory does not apply; no patched release exists yet.
 

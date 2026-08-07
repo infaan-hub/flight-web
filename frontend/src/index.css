@@ -21,7 +21,7 @@
     --border: 217 25% 24%;
     --input: 217 25% 24%;
     --ring: 199 95% 55%;
-    --radius: 1rem;
+    --radius: 1.25rem;
   }
 }
 
@@ -33,15 +33,29 @@ html {
   scroll-behavior: smooth;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 body {
-  background-color: hsl(var(--background));
+  background-color: #030610;
   background-image:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(14, 116, 144, 0.18), transparent),
-    radial-gradient(ellipse 60% 40% at 90% 20%, rgba(88, 28, 135, 0.12), transparent),
-    radial-gradient(ellipse 60% 40% at 5% 60%, rgba(14, 116, 144, 0.1), transparent);
+    radial-gradient(ellipse 90% 55% at 50% -12%, rgba(14, 116, 144, 0.2), transparent),
+    radial-gradient(ellipse 60% 40% at 92% 22%, rgba(88, 28, 135, 0.14), transparent),
+    radial-gradient(ellipse 60% 40% at 4% 60%, rgba(14, 116, 144, 0.1), transparent);
   background-attachment: fixed;
   color: hsl(var(--foreground));
   font-family: "Inter", system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
 }
 
 .font-display {
@@ -49,18 +63,27 @@ body {
   letter-spacing: -0.02em;
 }
 
-/* Film grain overlay — makes gradients feel photographic, not synthetic */
+.font-grotesk {
+  font-family: "Space Grotesk", "Inter", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+::selection {
+  background: hsl(199 95% 55% / 0.4);
+}
+
+/* ── Film grain ─────────────────────────────────────────────── */
 .grain::before {
   content: "";
   position: fixed;
   inset: 0;
-  z-index: 5;
+  z-index: 60;
   pointer-events: none;
-  opacity: 0.05;
+  opacity: 0.045;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* Glass recipe used by cards, panels and the nav */
+/* ── Glass recipes ──────────────────────────────────────────── */
 .glass {
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03));
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -72,20 +95,30 @@ body {
 }
 
 .glass-strong {
-  background: linear-gradient(160deg, rgba(20, 30, 50, 0.75), rgba(10, 16, 30, 0.65));
+  background: linear-gradient(160deg, rgba(16, 26, 46, 0.82), rgba(7, 12, 24, 0.72));
   border: 1px solid rgba(255, 255, 255, 0.14);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   box-shadow:
-    0 16px 48px rgba(0, 0, 0, 0.45),
+    0 16px 48px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-/* Aurora blobs (reactbits-style ambient background) */
+.glass-sky {
+  background: linear-gradient(160deg, rgba(12, 24, 48, 0.55), rgba(4, 8, 20, 0.35));
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow:
+    0 12px 40px rgba(2, 8, 20, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* ── Aurora blobs ───────────────────────────────────────────── */
 .aurora {
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   overflow: hidden;
   pointer-events: none;
 }
@@ -111,22 +144,53 @@ body {
   }
 }
 
-/* Slow float for hero decals */
-@keyframes float-y {
-  0%,
+/* ── Sky gradient keyframe loop (video fallback) ────────────── */
+@keyframes sky-pan {
+  0% {
+    background-position: 0% 0%;
+  }
   100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
+    background-position: 100% 100%;
   }
 }
 
-.float-y {
-  animation: float-y 6s ease-in-out infinite;
+.sky-cinematic {
+  background:
+    radial-gradient(ellipse 120% 90% at 20% -10%, rgba(29, 78, 216, 0.55), transparent 55%),
+    radial-gradient(ellipse 100% 80% at 85% 0%, rgba(14, 165, 233, 0.4), transparent 60%),
+    radial-gradient(ellipse 90% 70% at 50% 110%, rgba(124, 58, 237, 0.35), transparent 65%),
+    linear-gradient(180deg, #020617 0%, #04102a 55%, #0a1a3d 100%);
+  background-size: 180% 180%;
+  animation: sky-pan 26s ease-in-out infinite alternate;
 }
 
-/* Mini radar sweep (hero live pill) */
+/* ── Drifting cloud banks ───────────────────────────────────── */
+.cloud-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.cloud {
+  position: absolute;
+  background: radial-gradient(ellipse at 40% 50%, rgba(226, 236, 250, 0.16), transparent 60%);
+  border-radius: 9999px;
+  filter: blur(28px);
+  will-change: transform;
+}
+
+@keyframes cloud-drift {
+  from {
+    transform: translate3d(-15vw, 0, 0);
+  }
+  to {
+    transform: translate3d(115vw, 0, 0);
+  }
+}
+
+/* ── Radar sweep pill ───────────────────────────────────────── */
 @keyframes radar-spin {
   to {
     transform: rotate(360deg);
@@ -153,7 +217,7 @@ body {
   animation: radar-spin 2.4s linear infinite;
 }
 
-/* Callsign marquee ticker */
+/* ── Callsign marquee ───────────────────────────────────────── */
 @keyframes marquee {
   to {
     transform: translateX(-50%);
@@ -177,7 +241,7 @@ body {
   animation-play-state: paused;
 }
 
-/* One-shot gradient sweep across the navbar pill on page load */
+/* ── Nav sweep ──────────────────────────────────────────────── */
 @keyframes nav-sweep {
   0% {
     transform: translateX(-130%) skewX(-14deg);
@@ -203,32 +267,114 @@ body {
   animation: nav-sweep 1.4s 0.15s ease-out forwards;
 }
 
-/* Scrollbar */
+/* ── Gradient headline text ─────────────────────────────────── */
+.text-gradient-sky {
+  background: linear-gradient(100deg, #7dd3fc 0%, #38bdf8 35%, #818cf8 70%, #c084fc 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* ── Shine sweep for buttons ────────────────────────────────── */
+@keyframes shine-sweep {
+  0% {
+    transform: translateX(-150%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(250%) skewX(-18deg);
+  }
+}
+
+.btn-shine::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  animation: shine-sweep 3.2s ease-in-out infinite;
+}
+
+/* ── Skeleton shimmer ───────────────────────────────────────── */
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.12) 50%, rgba(255, 255, 255, 0.04) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.8s infinite linear;
+}
+
+/* ── Slow float ─────────────────────────────────────────────── */
+@keyframes float-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.float-y {
+  animation: float-y 6s ease-in-out infinite;
+}
+
+/* ── Pulse rings (selected aircraft, live dots) ─────────────── */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.pulse-ring::before,
+.pulse-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 1px solid currentColor;
+  animation: pulse-ring 2.2s ease-out infinite;
+}
+
+.pulse-ring::after {
+  animation-delay: 1.1s;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 12px;
 }
 ::-webkit-scrollbar-track {
-  background: hsl(var(--background));
+  background: #030610;
 }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(56, 189, 248, 0.45), rgba(30, 64, 175, 0.45));
-  border: 3px solid hsl(var(--background));
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.4), rgba(30, 64, 175, 0.4));
+  border: 3px solid #030610;
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(56, 189, 248, 0.7), rgba(30, 64, 175, 0.7));
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.65), rgba(30, 64, 175, 0.65));
 }
 
-::selection {
-  background: hsl(199 95% 55% / 0.35);
-}
-
-/* Mapbox dark-glass chrome (popup, controls, attribution) */
+/* ── Mapbox dark-glass chrome ───────────────────────────────── */
 .mapboxgl-popup-content {
   background: rgba(8, 13, 26, 0.92);
   color: hsl(var(--foreground));
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 0.9rem;
+  border-radius: 1rem;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
@@ -278,7 +424,7 @@ body {
   border-color: #cbd5e1;
 }
 
-/* Native form controls follow the dark theme */
+/* ── Native form controls ───────────────────────────────────── */
 option {
   background-color: hsl(228 60% 7%);
   color: hsl(var(--foreground));
@@ -286,6 +432,33 @@ option {
 
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(0.8);
+}
+
+/* ── Animated route line (FlightDetail) ─────────────────────── */
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+.route-flow {
+  stroke-dasharray: 6 6;
+  animation: dash-flow 1.6s linear infinite;
+}
+
+/* ── Board rows: blinking "LIVE" cells ──────────────────────── */
+@keyframes blink-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.blink-soft {
+  animation: blink-soft 1.6s ease-in-out infinite;
 }
 
 @utility container-custom {

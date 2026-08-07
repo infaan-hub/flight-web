@@ -1,48 +1,39 @@
-import { useState, useEffect, useRef, Suspense, lazy } from "react"
+import { useState, useEffect, Suspense, lazy } from "react"
 import { Link } from "react-router-dom"
-import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion"
-import { animate, eases } from "animejs"
+import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "../components/ui/button"
-import { Input } from "../components/ui/input"
 const FlightMap = lazy(() => import("../components/FlightMap"))
 import FlightCard from "../components/FlightCard"
-import Reveal from "../components/Reveal"
-import TiltedCard from "../components/TiltedCard"
+import AnimatedSection from "../components/ui/AnimatedSection"
+import AnimatedHeading from "../components/ui/AnimatedHeading"
+import AnimatedButton from "../components/ui/AnimatedButton"
+import GlassCard from "../components/ui/GlassCard"
+import SearchBar from "../components/ui/SearchBar"
 import CountUp from "../components/CountUp"
-import FlyingPlane from "../components/FlyingPlane"
+import CloudLayer from "../components/cinema/CloudLayer"
+import VideoBackground from "../components/cinema/VideoBackground"
 import { getLiveFlights, getTodaysFlights, getFlightStats, getAirports, getAirportBoard } from "../services/api"
 import { getUserLocation, getDefaultLocation, type LocationInfo } from "../lib/geo"
 import type { LiveFlight, FlightDetail, FlightStats, Airport } from "../types"
 import {
-  Plane, Search, Radar, TrendingUp, ArrowRight, RotateCw, Clock,
+  Plane, Search, Radar, TrendingUp, RotateCw, Clock,
   Radio, Route as RouteIcon, LayoutDashboard, Globe2, ShieldCheck, Zap,
-  PlaneTakeoff, PlaneLanding, Send, Star, ChevronRight, Calendar,
+  PlaneTakeoff, Send, Star, ChevronRight, ChevronDown,
 } from "lucide-react"
 
 const HERO_IMG =
   "https://images.unsplash.com/photo-1540962351504-03099e0a754b?auto=format&fit=crop&w=1920&q=80"
-const WING_IMG =
-  "https://images.unsplash.com/photo-1529074963764-98f45c47344b?auto=format&fit=crop&w=1920&q=80"
 const CABIN_IMG =
   "https://images.unsplash.com/photo-1474302770737-173ee21bab63?auto=format&fit=crop&w=1600&q=80"
 
-const HERO_PLANE = (
-  <svg viewBox="0 0 64 24" className="h-full w-full" aria-hidden>
-    <path
-      d="M62 13.5 38 5.5v-3a2.2 2.2 0 0 0-4.3-.6L24 11.5l-15-4.5V5l5-2.6V1.6l6.5 3.2 5.5-2.8V.8a1.5 1.5 0 0 0-2.5-1l-6 5.6L10 8.2v4.2l6-3v3l-5 2.1v5.2c0 .8.6 1.5 1.5 1.5.6 0 1.2-.4 1.4-.9l6.3-10.5L25 8.4l1.6 8.5-3.6 7.4c-.4.9.2 1.9 1.1 1.9.5 0 1-.3 1.3-.8l7.4-10.2L41 14l7.8 16.3a1.6 1.6 0 0 0 2.9-.7L58 17l4-1.2v-2.3z"
-      fill="#fff"
-    />
-  </svg>
-)
+const HEADLINES = ["live and honest.", "clear and exact.", "instant and precise."]
 
 const FEATURES = [
-  { icon: Radio, title: "Live radar", desc: "Every aircraft broadcasting ADS-B, updated every few seconds, clustered and rotatable on a 3D map.", img: "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?auto=format&fit=crop&w=800&q=70" },
-  { icon: RouteIcon, title: "Flight trails", desc: "Replay the actual path a flight flew — altitude-colored climb, cruise and descent segments.", img: "https://images.unsplash.com/photo-1569154941061-e231b4725ef1?auto=format&fit=crop&w=800&q=70" },
-  { icon: Clock, title: "Airport boards", desc: "Live departures and arrivals for any airport, with gates, terminals and delay status.", img: "https://images.unsplash.com/photo-1556388158-158ea5ccacbd?auto=format&fit=crop&w=800&q=70" },
-  { icon: Globe2, title: "Global coverage", desc: "Crowdsourced ADS-B from thousands of receivers, with honest estimates where coverage fades over oceans.", img: "https://images.unsplash.com/photo-1608231387042-66d1773070a5?auto=format&fit=crop&w=800&q=70" },
+  { icon: Radio, title: "Live radar", desc: "Every aircraft broadcasting ADS-B, updated every few seconds, clustered and rotatable on a 3D map." },
+  { icon: RouteIcon, title: "Flight trails", desc: "Replay the actual path a flight flew — altitude-colored climb, cruise and descent segments." },
+  { icon: Clock, title: "Airport boards", desc: "Live departures and arrivals for any airport, with gates, terminals and delay status." },
+  { icon: Globe2, title: "Global coverage", desc: "Crowdsourced ADS-B from thousands of receivers, with honest estimates where coverage fades over oceans." },
 ]
-
-const HEADLINES = ["live and honest.", "clear and exact.", "instant and precise."]
 
 const STEPS = [
   { n: "01", title: "Pick a flight", desc: "Search by flight number, callsign, airport or route — or just browse the live map." },
@@ -69,14 +60,7 @@ export default function Home() {
   const [boardLoading, setBoardLoading] = useState(false)
   const [email, setEmail] = useState("")
   const [subscribed, setSubscribed] = useState(false)
-  const heroPlaneRef = useRef<HTMLDivElement>(null)
-  const heroTakeoffRef = useRef(false)
-  const heroRef = useRef<HTMLElement>(null)
   const [headlineIdx, setHeadlineIdx] = useState(0)
-
-  const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] })
-  const heroImgY = useTransform(scrollYProgress, [0, 1], ["0%", "26%"])
-  const heroImgScale = useTransform(scrollYProgress, [0, 1], [1, 1.08])
 
   useEffect(() => {
     const t = setInterval(() => setHeadlineIdx((i) => (i + 1) % HEADLINES.length), 3400)
@@ -91,10 +75,11 @@ export default function Home() {
     let cancelled = false
     const load = async () => {
       const loc = location
-      const [live, today, statsData] = await Promise.allSettled([
+      const [live, today, statsData, airportData] = await Promise.allSettled([
         getLiveFlights(loc.bounds),
         getTodaysFlights(loc.lat, loc.lng, loc.isZanzibar ? 2000 : 1200),
         getFlightStats(),
+        getAirports(),
       ])
       if (cancelled) return
       if (live.status === "fulfilled") {
@@ -115,6 +100,9 @@ export default function Home() {
       } else {
         setFailed((f) => (f.includes("stats") ? f : [...f, "stats"]))
       }
+      if (airportData.status === "fulfilled") {
+        setAirports(airportData.value)
+      }
     }
     load()
     return () => {
@@ -122,232 +110,204 @@ export default function Home() {
     }
   }, [location, retryTick])
 
-  // Airport boards widget
   useEffect(() => {
-    getAirports().then(setAirports).catch(() => setAirports([]))
-  }, [])
-
-  useEffect(() => {
+    if (!boardAirport) return
     setBoardLoading(true)
     getAirportBoard(boardAirport, "departures")
-      .then((f) => setBoard(f.slice(0, 6)))
+      .then(setBoard)
       .catch(() => setBoard([]))
       .finally(() => setBoardLoading(false))
   }, [boardAirport])
 
-  // Hero takeoff: as soon as the user scrolls, the plane climbs out of frame (anime.js)
-  useEffect(() => {
-    const onScroll = () => {
-      if (window.scrollY > 90 && !heroTakeoffRef.current && heroPlaneRef.current) {
-        heroTakeoffRef.current = true
-        animate(heroPlaneRef.current, {
-          translateY: ["0vh", "-46vh"],
-          translateX: ["0vw", "26vw"],
-          rotate: [-8, -16],
-          opacity: [1, 0],
-          duration: 1600,
-          easing: eases.inOutQuad,
-        })
-      }
-    }
-    window.addEventListener("scroll", onScroll, { passive: true })
-    return () => window.removeEventListener("scroll", onScroll)
-  }, [])
+  const allFailed = failed.length >= 3
 
-  const allFailed = failed.length === 3
-  const tickerCallsigns = liveFlights.map((f) => f.callsign).filter((c): c is string => Boolean(c))
+  const tickerCallsigns = liveFlights.slice(0, 14).map((f) => f.callsign).filter(Boolean) as string[]
+
+  const statsCards = [
+    { label: "Flights today", value: stats?.total_flights_today ?? 0, icon: Plane, color: "from-sky-400 to-blue-500", suffix: "" },
+    { label: "In the air now", value: stats?.flights_in_air ?? 0, icon: TrendingUp, color: "from-emerald-400 to-teal-500", suffix: "" },
+    { label: "Delayed", value: stats?.flights_delayed ?? 0, icon: Clock, color: "from-amber-400 to-orange-500", suffix: "" },
+    { label: "Avg delay", value: stats?.average_delay_minutes ?? 0, icon: ShieldCheck, color: "from-rose-400 to-red-500", suffix: " min" },
+  ]
 
   return (
-    <div className="space-y-24">
+    <div>
       {/* ── HERO ─────────────────────────────────────────────── */}
-      <section ref={heroRef} className="relative -mt-20 min-h-[92vh] flex items-center overflow-hidden">
-        <motion.div className="absolute inset-0" style={{ y: heroImgY, scale: heroImgScale }}>
-          <img
-            src={HERO_IMG}
-            alt="Airplane taking off into a sunset sky"
-            className="h-full w-full object-cover"
-            fetchPriority="high"
-          />
-        </motion.div>
-        <div className="absolute inset-0 bg-gradient-to-b from-[#05070f]/70 via-[#05070f]/45 to-[#05070f]" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#05070f]/80 via-transparent to-transparent" />
+      <section className="relative flex min-h-[100svh] items-center overflow-hidden">
+        <div className="container-custom relative z-10 w-full pt-24 pb-20">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            className="inline-flex items-center gap-2.5 rounded-full glass px-4 py-2 text-xs font-semibold text-slate-200"
+          >
+            <span className="radar-sweep" aria-hidden />
+            <span className="font-grotesk tracking-[0.2em] uppercase text-sky-300">Live from Zanzibar</span>
+            <span className="hidden text-slate-500 sm:inline">· and 100,000+ aircraft worldwide</span>
+          </motion.div>
 
-        {/* Hero plane — takes off when you scroll */}
-        <div
-          ref={heroPlaneRef}
-          className="pointer-events-none absolute z-20"
-          style={{ right: "18%", top: "30%", width: 150, transform: "rotate(-8deg)" }}
+          <h1 className="font-display mt-6 max-w-3xl text-5xl font-bold leading-[1.04] tracking-tight md:text-7xl">
+            <motion.span
+              className="block"
+              initial={{ opacity: 0, y: 30, filter: "blur(10px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ duration: 0.9, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+            >
+              The sky,{" "}
+            </motion.span>
+            <span className="relative inline-flex overflow-hidden align-bottom">
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={headlineIdx}
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -24 }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  className="text-gradient-sky inline-block"
+                >
+                  {HEADLINES[headlineIdx]}
+                </motion.span>
+              </AnimatePresence>
+            </span>
+          </h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.35 }}
+            className="mt-6 max-w-xl text-base leading-relaxed text-slate-300 md:text-lg"
+          >
+            ZanflightGO tracks real aircraft from thousands of crowdsourced receivers —
+            real-time positions, flight trails, airport boards and delays — wrapped in a glass-clear interface.
+          </motion.p>
+
+          <div className="mt-8 max-w-3xl">
+            <SearchBar />
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.8 }}
+            className="mt-8 flex flex-wrap items-center gap-4 text-sm"
+          >
+            <AnimatedButton to="/radar" variant="primary" size="lg" shine>
+              <Radar className="h-4 w-4" /> Open live radar
+            </AnimatedButton>
+            <AnimatedButton to="/flights" variant="glass" size="lg">
+              Browse today's flights <ChevronRight className="h-4 w-4" />
+            </AnimatedButton>
+          </motion.div>
+
+          {/* Live mini-stats */}
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.95 }}
+            className="mt-12 flex max-w-xl flex-wrap gap-3"
+          >
+            {statsCards.map((s) => (
+              <div key={s.label} className="glass rounded-xl px-4 py-2.5">
+                <p className="font-display text-lg font-bold leading-none">
+                  <CountUp value={s.value} />
+                  {s.suffix}
+                </p>
+                <p className="mt-1 text-[10px] uppercase tracking-widest text-slate-400">{s.label}</p>
+              </div>
+            ))}
+          </motion.div>
+        </div>
+
+        <motion.div
+          animate={{ y: [0, 8, 0] }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute bottom-6 left-1/2 z-10 -translate-x-1/2 text-slate-500"
           aria-hidden
         >
-          {HERO_PLANE}
-          <div className="absolute inset-x-0 top-full mt-1 h-px bg-gradient-to-r from-transparent via-white/60 to-transparent" />
-        </div>
+          <ChevronDown className="h-5 w-5" />
+        </motion.div>
 
-        <div className="container-custom relative z-10 pt-28 pb-16">
-          <Reveal direction="none">
-            <div className="inline-flex items-center gap-2 rounded-full glass px-4 py-1.5 text-xs font-medium text-sky-200 mb-6">
-              <span className="radar-sweep" aria-hidden />
-              Live ADS-B coverage · {stats ? `${stats.flights_in_air.toLocaleString()} aircraft airborne` : "thousands of aircraft"}
-            </div>
-          </Reveal>
-
-          <Reveal delay={0.05}>
-            <h1 className="font-display text-5xl md:text-7xl font-extrabold leading-[1.02] tracking-tight">
-              The sky,
-              <br />
-              <span className="bg-gradient-to-r from-sky-400 via-cyan-300 to-teal-300 bg-clip-text text-transparent">
-                <AnimatePresence mode="wait">
-                  <motion.span
-                    key={headlineIdx}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.45, ease: "easeOut" }}
-                    className="inline-block"
-                  >
-                    {HEADLINES[headlineIdx]}
-                  </motion.span>
-                </AnimatePresence>
-              </span>
-            </h1>
-          </Reveal>
-
-          <Reveal delay={0.12}>
-            <p className="mt-6 max-w-xl text-lg text-slate-300">
-              ZanflightGO tracks real aircraft from thousands of crowdsourced receivers —
-              real-time positions, flight trails, airport boards and delays, wrapped in a glass-clear interface.
-            </p>
-          </Reveal>
-
-          {/* Glass search bar */}
-          <Reveal delay={0.2}>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                window.location.href = "/search"
-              }}
-              className="glass-strong mt-8 flex flex-col md:flex-row items-stretch gap-3 rounded-2xl p-3 md:items-center"
-            >
-              <div className="flex items-center gap-2 px-3 flex-1">
-                <PlaneTakeoff className="h-4 w-4 shrink-0 text-sky-400" />
-                <Input placeholder="From (e.g. ZNZ, JNB, LHR)" className="border-0 bg-transparent focus-visible:ring-0 h-10" />
-              </div>
-              <div className="hidden md:block w-px h-8 bg-white/15" />
-              <div className="flex items-center gap-2 px-3 flex-1">
-                <PlaneLanding className="h-4 w-4 shrink-0 text-sky-400" />
-                <Input placeholder="To (e.g. DAR, NBO, CDG)" className="border-0 bg-transparent focus-visible:ring-0 h-10" />
-              </div>
-              <div className="hidden md:block w-px h-8 bg-white/15" />
-              <div className="flex items-center gap-2 px-3 flex-1">
-                <Calendar className="h-4 w-4 shrink-0 text-sky-400" />
-                <Input type="date" defaultValue={new Date().toISOString().slice(0, 10)} className="border-0 bg-transparent focus-visible:ring-0 h-10" />
-              </div>
-              <Button type="submit" size="lg" className="gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 shadow-lg shadow-sky-500/25">
-                <Search className="h-4 w-4" /> Find flight
-              </Button>
-            </form>
-          </Reveal>
-
-          <Reveal delay={0.28}>
-            <div className="mt-8 flex flex-wrap items-center gap-3 text-sm text-slate-400">
-              <Link to="/radar" className="group flex items-center gap-1.5 rounded-full glass px-4 py-2 font-medium text-slate-200 transition-colors hover:text-sky-300">
-                <Radar className="h-4 w-4" /> Open live radar
-                <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-              <span className="hidden sm:block">or</span>
-              <Link to="/flights" className="flex items-center gap-1.5 px-2 py-2 font-medium hover:text-sky-300 transition-colors">
-                Browse today's flights <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-          </Reveal>
-        </div>
-
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-slate-500 text-xs tracking-widest uppercase animate-bounce" aria-hidden>
-          Scroll
-        </div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-40 bg-gradient-to-t from-[#030610] to-transparent" />
       </section>
 
       {/* ── LIVE CALLSIGN TICKER ─────────────────────────────── */}
       {tickerCallsigns.length >= 3 && (
-        <section className="marquee glass rounded-2xl py-3" aria-hidden>
-          <div className="marquee-track">
-            {[...tickerCallsigns, ...tickerCallsigns].map((cs, i) => (
-              <span
-                key={`${cs}-${i}`}
-                className="flex items-center gap-3 text-sm whitespace-nowrap text-slate-300"
-              >
-                <Plane className="h-3.5 w-3.5 text-sky-400" />
-                {cs}
-                <span className="h-1 w-1 rounded-full bg-white/25" />
-              </span>
-            ))}
-          </div>
-        </section>
+        <AnimatedSection>
+          <section className="marquee glass mx-auto max-w-4xl rounded-2xl py-3" aria-hidden>
+            <div className="marquee-track">
+              {[...tickerCallsigns, ...tickerCallsigns].map((cs, i) => (
+                <span key={`${cs}-${i}`} className="flex items-center gap-3 text-sm whitespace-nowrap text-slate-300">
+                  <Plane className="h-3.5 w-3.5 text-sky-400" />
+                  {cs}
+                  <span className="h-1 w-1 rounded-full bg-white/25" />
+                </span>
+              ))}
+            </div>
+          </section>
+        </AnimatedSection>
       )}
 
       {/* ── STATS STRIP ──────────────────────────────────────── */}
-      <section className="container-custom">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: "Flights today", value: stats?.total_flights_today ?? 0, icon: Plane, color: "from-sky-400 to-blue-500" },
-            { label: "In the air now", value: stats?.flights_in_air ?? 0, icon: TrendingUp, color: "from-emerald-400 to-teal-500" },
-            { label: "Delayed", value: stats?.flights_delayed ?? 0, icon: Clock, color: "from-amber-400 to-orange-500" },
-            { label: "Avg delay", value: stats?.average_delay_minutes ?? 0, icon: ShieldCheck, color: "from-rose-400 to-red-500", suffix: " min" },
-          ].map((s, i) => (
-            <Reveal key={s.label} delay={i * 0.07}>
-              <div className="glass rounded-2xl p-5 flex items-center gap-4 hover:-translate-y-0.5 transition-transform">
+      <section className="container-custom mt-16">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {statsCards.map((s, i) => (
+            <AnimatedSection key={s.label} delay={i * 0.08}>
+              <GlassCard maxTilt={5} className="flex items-center gap-4 p-5 hover:border-sky-400/30">
                 <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${s.color} shadow-lg`}>
                   <s.icon className="h-5 w-5 text-white" />
                 </div>
                 <div>
                   <p className="font-display text-2xl font-bold">
                     <CountUp value={s.value} />
-                    {s.suffix || ""}
+                    {s.suffix}
                   </p>
                   <p className="text-xs text-muted-foreground">{s.label}</p>
                 </div>
-              </div>
-            </Reveal>
+              </GlassCard>
+            </AnimatedSection>
           ))}
         </div>
       </section>
 
-      {/* ── LIVE FLIGHTS + MAP ───────────────────────────────── */}
-      <section className="container-custom">
-        <Reveal>
-          <div className="flex items-end justify-between mb-6">
-            <div>
-              <h2 className="font-display text-3xl md:text-4xl font-bold">
-                Live near <span className="text-sky-400">{location.label}</span>
-              </h2>
-              <p className="text-muted-foreground mt-2 max-w-lg text-sm">
-                Positions from crowdsourced ADS-B receivers. Dimmed markers are estimated — coverage can fade over
-                oceans and remote regions.
-              </p>
-            </div>
-            <Link to="/radar" className="hidden md:flex items-center gap-1.5 text-sm font-medium text-sky-400 hover:text-sky-300">
-              Full radar <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </Reveal>
+      {/* ── LIVE MAP + TODAY'S FLIGHTS ────────────────────────── */}
+      <section className="container-custom mt-24">
+        <div className="flex items-end justify-between">
+          <AnimatedHeading
+            kicker="Live radar"
+            accent={location.label}
+            className="text-4xl"
+          >
+            Live near{" "}
+          </AnimatedHeading>
+          <AnimatedButton to="/radar" variant="outline" size="sm" className="mb-2 hidden md:inline-flex">
+            Full radar <ChevronRight className="h-3.5 w-3.5" />
+          </AnimatedButton>
+        </div>
+        <AnimatedSection delay={0.1}>
+          <p className="mt-3 max-w-lg text-sm text-muted-foreground">
+            Positions from crowdsourced ADS-B receivers. Dimmed markers are estimated — coverage can fade over
+            oceans and remote regions.
+          </p>
+        </AnimatedSection>
 
         {allFailed && (
-          <div className="glass rounded-2xl p-6 text-center mb-6">
-            <p className="text-muted-foreground mb-4">
-              Couldn't reach the flight data service. If this is the first request in a while, the backend may be
-              waking up — try again.
-            </p>
-            <Button onClick={() => setRetryTick((t) => t + 1)} className="gap-2">
-              <RotateCw className="h-4 w-4" /> Retry
-            </Button>
-          </div>
+          <AnimatedSection>
+            <GlassCard className="mb-6 p-6 text-center">
+              <p className="text-muted-foreground mb-4">
+                Couldn't reach the flight data service. If this is the first request in a while, the backend may be
+                waking up — try again.
+              </p>
+              <Button onClick={() => setRetryTick((t) => t + 1)} className="gap-2">
+                <RotateCw className="h-4 w-4" /> Retry
+              </Button>
+            </GlassCard>
+          </AnimatedSection>
         )}
 
-        <Reveal>
-          <div className="glass rounded-2xl p-2">
-            <Suspense
-              fallback={<div className="w-full h-[460px] rounded-xl bg-muted animate-pulse" />}
-            >
+        <AnimatedSection delay={0.15}>
+          <div className="glass relative overflow-hidden rounded-3xl p-2">
+            <CloudLayer density={2} intensity={0.35} />
+            <Suspense fallback={<div className="skeleton h-[460px] w-full rounded-2xl" />}>
               <FlightMap
                 flights={liveFlights}
                 center={[location.lat, location.lng]}
@@ -356,219 +316,218 @@ export default function Home() {
               />
             </Suspense>
           </div>
-        </Reveal>
+        </AnimatedSection>
 
-        <div className="mt-8">
-          <div className="flex items-center justify-between mb-4">
+        <div className="mt-12">
+          <div className="flex items-center justify-between">
             <h3 className="font-display text-xl font-bold">Today's flights near {location.label}</h3>
-            <Link to="/flights" className="text-sm text-sky-400 hover:text-sky-300 flex items-center gap-1">
-              View all <ArrowRight className="h-4 w-4" />
+            <Link to="/flights" className="flex items-center gap-1 text-sm text-sky-400 hover:text-sky-300">
+              View all <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {todaysFlights.length > 0
-              ? todaysFlights.map((flight) => <FlightCard key={flight.flight_number} flight={flight} />)
+              ? todaysFlights.map((flight, i) => <FlightCard key={flight.flight_number} flight={flight} index={i} />)
               : Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="glass rounded-2xl p-5 space-y-3">
-                    <div className="h-4 w-2/3 bg-white/10 rounded animate-pulse" />
-                    <div className="h-4 w-1/2 bg-white/10 rounded animate-pulse" />
-                    <div className="h-8 w-24 bg-white/10 rounded animate-pulse" />
-                  </div>
+                  <GlassCard key={i} className="space-y-4 p-5">
+                    <div className="skeleton h-4 w-2/3 rounded" />
+                    <div className="skeleton h-4 w-1/2 rounded" />
+                    <div className="skeleton h-8 w-24 rounded" />
+                  </GlassCard>
                 ))}
           </div>
         </div>
       </section>
 
       {/* ── AIRPORT BOARD ────────────────────────────────────── */}
-      <section className="container-custom">
-        <Reveal>
-          <div className="flex items-end justify-between mb-6">
-            <div>
-              <h2 className="font-display text-3xl md:text-4xl font-bold">
-                Live boards, <span className="text-sky-400">any airport</span>
-              </h2>
-              <p className="text-muted-foreground mt-2 text-sm">Pick an airport and watch departures as they happen.</p>
-            </div>
-          </div>
-        </Reveal>
-        <div className="grid lg:grid-cols-5 gap-6">
-          <Reveal className="lg:col-span-3">
-            <div className="glass rounded-2xl p-6">
-              <div className="flex items-center justify-between gap-4 mb-4">
-                <div className="flex items-center gap-2">
-                  <LayoutDashboard className="h-5 w-5 text-sky-400" />
-                  <span className="font-semibold">Departures</span>
+      <section className="relative mt-28 overflow-hidden py-24">
+        <VideoBackground video="takeoffDusk" overlayOpacity={0.7} videoOpacity={0.5} gradient="linear-gradient(180deg,#030610 0%,transparent 12%,transparent 88%,#030610 100%)" />
+        <CloudLayer density={3} intensity={0.5} />
+        <div className="container-custom relative z-10">
+          <AnimatedHeading kicker="Airport boards" accent="any airport" center>
+            Live boards,
+          </AnimatedHeading>
+          <p className="mx-auto mt-3 max-w-md text-center text-sm text-slate-300">
+            Pick an airport and watch departures as they happen.
+          </p>
+
+          <div className="mt-10 grid gap-6 lg:grid-cols-5">
+            <AnimatedSection className="lg:col-span-3">
+              <GlassCard strong className="p-6">
+                <div className="mb-5 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="pulse-ring absolute inset-0 text-emerald-400" />
+                      <span className="relative h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                    </span>
+                    <span className="font-semibold">Departures</span>
+                  </div>
+                  <select
+                    value={boardAirport}
+                    onChange={(e) => setBoardAirport(e.target.value)}
+                    className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm focus:border-sky-400 focus:outline-none"
+                    aria-label="Airport"
+                  >
+                    {airports.slice(0, 40).map((a) => (
+                      <option key={a.iata} value={a.iata} className="bg-slate-900">
+                        {a.iata} · {a.city}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <select
-                  value={boardAirport}
-                  onChange={(e) => setBoardAirport(e.target.value)}
-                  className="rounded-xl bg-white/5 border border-white/15 px-3 py-2 text-sm focus:outline-none focus:border-sky-400"
-                >
-                  {airports.slice(0, 40).map((a) => (
-                    <option key={a.iata} value={a.iata} className="bg-slate-900">
-                      {a.iata} · {a.city}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {boardLoading ? (
-                <div className="space-y-3">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="h-12 bg-white/5 rounded-xl animate-pulse" />
-                  ))}
-                </div>
-              ) : board.length > 0 ? (
-                <div className="space-y-2">
-                  {board.map((f) => (
-                    <Link
-                      key={`${f.flight_number}-${f.flight_date}-${f.departure_airport}`}
-                      to={`/flights/${f.flight_number}`}
-                      className="flex items-center justify-between rounded-xl px-3 py-2.5 bg-white/[0.03] hover:bg-white/[0.07] transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold w-20">{f.flight_number}</span>
-                        <span className="text-sm text-muted-foreground">{f.departure_airport_name || f.departure_airport}</span>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm">
-                        {f.departure_time_scheduled && (
-                          <span className="text-muted-foreground">
-                            {new Date(f.departure_time_scheduled).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                        )}
-                        {f.departure_delay != null && f.departure_delay > 0 && (
-                          <span className="text-xs font-semibold text-amber-400">+{f.departure_delay}m</span>
-                        )}
-                        <span className="text-xs text-muted-foreground">{f.status || ""}</span>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground py-8 text-center">No departures found — try another airport.</p>
-              )}
-            </div>
-          </Reveal>
-          <Reveal className="lg:col-span-2" delay={0.1}>
-            <div className="relative h-full min-h-[280px] overflow-hidden rounded-2xl glass">
-              <img src={CABIN_IMG} alt="View from an airplane window" className="absolute inset-0 h-full w-full object-cover opacity-60" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#05070f] via-[#05070f]/40 to-transparent" />
-              <div className="relative z-10 flex h-full flex-col justify-end p-6">
-                <FlyingPlane variant="cross" size={72} className="top-10" />
-                <h3 className="font-display text-2xl font-bold">Search any flight</h3>
-                <p className="text-sm text-slate-300 mt-1">
-                  Flight number, callsign, airline, route — if it's in the sky, it's in ZanflightGO.
-                </p>
-                <Link to="/search" className="mt-4">
-                  <Button className="gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500">
+                {boardLoading ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="skeleton h-12 rounded-xl" />
+                    ))}
+                  </div>
+                ) : board.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {board.map((f, i) => (
+                      <motion.div
+                        key={`${f.flight_number}-${f.flight_date}-${f.departure_airport}`}
+                        initial={{ opacity: 0, x: -14 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.4, delay: Math.min(i * 0.05, 0.5) }}
+                      >
+                        <Link
+                          to={`/flights/${f.flight_number}`}
+                          className="group flex items-center justify-between rounded-xl bg-white/[0.03] px-3 py-3 transition-all hover:bg-sky-400/10"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="font-display w-20 font-bold">{f.flight_number}</span>
+                            <span className="text-sm text-muted-foreground group-hover:text-slate-200">
+                              {f.departure_airport_name || f.departure_airport}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-4 text-sm">
+                            {f.departure_time_scheduled && (
+                              <span className="tabular-nums text-muted-foreground">
+                                {new Date(f.departure_time_scheduled).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            )}
+                            {f.departure_delay != null && f.departure_delay > 0 && (
+                              <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-2 py-0.5 text-xs font-semibold text-amber-300">
+                                +{f.departure_delay}m
+                              </span>
+                            )}
+                            <span className="text-xs text-muted-foreground">{f.status || ""}</span>
+                          </div>
+                        </Link>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="py-8 text-center text-sm text-muted-foreground">No departures found — try another airport.</p>
+                )}
+              </GlassCard>
+            </AnimatedSection>
+
+            <AnimatedSection className="lg:col-span-2" delay={0.12}>
+              <GlassCard className="relative h-full min-h-[280px] overflow-hidden p-0">
+                <img src={CABIN_IMG} alt="View from an airplane window" className="absolute inset-0 h-full w-full object-cover opacity-50" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#030610] via-[#030610]/50 to-transparent" />
+                <div className="relative z-10 flex h-full flex-col justify-end p-6">
+                  <h3 className="font-display text-2xl font-bold">Search any flight</h3>
+                  <p className="mt-1 text-sm text-slate-300">
+                    Flight number, callsign, airline, route — if it's in the sky, it's in ZanflightGO.
+                  </p>
+                  <AnimatedButton to="/search" variant="primary" size="md" className="mt-4 self-start" shine>
                     <Search className="h-4 w-4" /> Search flights
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </Reveal>
+                  </AnimatedButton>
+                </div>
+              </GlassCard>
+            </AnimatedSection>
+          </div>
         </div>
       </section>
 
       {/* ── FEATURES ─────────────────────────────────────────── */}
-      <section className="container-custom">
-        <Reveal>
-          <div className="text-center max-w-2xl mx-auto mb-12">
-            <h2 className="font-display text-3xl md:text-4xl font-bold">
-              Built for people who <span className="text-sky-400">watch the sky</span>
-            </h2>
-            <p className="text-muted-foreground mt-3">Pilots, photographers, travellers and the curious — everything real-time, nothing exaggerated.</p>
-          </div>
-        </Reveal>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+      <section className="container-custom mt-28">
+        <AnimatedHeading kicker="Why ZanflightGO" accent="watch the sky" center>
+          Built for people who
+        </AnimatedHeading>
+        <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted-foreground">
+          Pilots, photographers, travellers and the curious — everything real-time, nothing exaggerated.
+        </p>
+        <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
           {FEATURES.map((f, i) => (
-            <Reveal key={f.title} delay={i * 0.08}>
-              <TiltedCard className="h-full overflow-hidden">
-                <div className="relative h-32 overflow-hidden">
-                  <img src={f.img} alt="" className="h-full w-full object-cover opacity-70" loading="lazy" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0a0f1e] to-transparent" />
+            <AnimatedSection key={f.title} delay={i * 0.08}>
+              <GlassCard maxTilt={8} className="group h-full p-6 hover:border-sky-400/30">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400/25 to-blue-600/25 ring-1 ring-sky-400/30 transition-all duration-500 group-hover:scale-110 group-hover:ring-sky-400/60">
+                  <f.icon className="h-5 w-5 text-sky-400" />
                 </div>
-                <div className="p-5">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400/20 to-blue-600/20 border border-sky-400/30 mb-3">
-                    <f.icon className="h-5 w-5 text-sky-400" />
-                  </div>
-                  <h3 className="font-display font-bold text-lg">{f.title}</h3>
-                  <p className="text-sm text-muted-foreground mt-1.5">{f.desc}</p>
-                </div>
-              </TiltedCard>
-            </Reveal>
+                <h3 className="font-display mt-4 text-lg font-bold">{f.title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
+              </GlassCard>
+            </AnimatedSection>
           ))}
         </div>
       </section>
 
-      {/* ── PARALLAX FLIGHT ──────────────────────────────────── */}
-      <section className="relative overflow-hidden py-28">
-        <img src={WING_IMG} alt="Airplane wing above the clouds at cruising altitude" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
-        <div className="absolute inset-0 bg-[#05070f]/60" />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#05070f] via-transparent to-[#05070f]" />
-        <FlyingPlane variant="cross" size={120} className="top-1/4 left-0" />
+      {/* ── PARALLAX TRAILS ──────────────────────────────────── */}
+      <section className="relative mt-28 overflow-hidden py-32">
+        <VideoBackground video="pinkSunset" overlayOpacity={0.72} videoOpacity={0.55} gradient="linear-gradient(180deg,#030610 0%,transparent 15%,transparent 85%,#030610 100%)" />
+        <CloudLayer density={4} intensity={0.6} />
         <div className="container-custom relative z-10">
-          <div className="max-w-lg">
-            <Reveal>
-              <span className="text-xs font-semibold tracking-[0.25em] uppercase text-sky-300">Flight trails</span>
-              <h2 className="font-display text-3xl md:text-5xl font-bold mt-3">
-                Follow the exact path, not the great-circle guess.
+          <div className="max-w-2xl">
+            <AnimatedSection>
+              <span className="font-grotesk text-xs font-semibold uppercase tracking-[0.35em] text-sky-300">Flight trails</span>
+              <h2 className="font-display mt-4 text-4xl font-bold leading-tight tracking-tight md:text-5xl">
+                Follow the exact path, <span className="text-gradient-sky">not the great-circle guess.</span>
               </h2>
-              <p className="text-slate-300 mt-4">
+              <p className="mt-5 text-base leading-relaxed text-slate-300">
                 Every trail is the real flown route from ADS-B history — altitude-colored from climb to cruise to
                 descent. When coverage is missing, we say so, and draw the planned arc instead.
               </p>
-              <Link to="/radar">
-                <Button size="lg" className="mt-6 gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 shadow-lg shadow-sky-500/25">
-                  <Radar className="h-4 w-4" /> Explore the radar
-                </Button>
-              </Link>
-            </Reveal>
+              <AnimatedButton to="/radar" variant="primary" size="lg" className="mt-8" shine>
+                <Radar className="h-4 w-4" /> Explore the radar
+              </AnimatedButton>
+            </AnimatedSection>
           </div>
         </div>
       </section>
 
       {/* ── HOW IT WORKS ─────────────────────────────────────── */}
-      <section className="container-custom">
-        <Reveal>
-          <h2 className="font-display text-3xl md:text-4xl font-bold text-center mb-12">
-            From <span className="text-sky-400">curiosity</span> to touchdown in three steps
-          </h2>
-        </Reveal>
-        <div className="grid md:grid-cols-3 gap-5">
+      <section className="container-custom mt-28">
+        <AnimatedHeading kicker="How it works" accent="touchdown" center>
+          From curiosity to
+        </AnimatedHeading>
+        <div className="mt-12 grid gap-5 md:grid-cols-3">
           {STEPS.map((s, i) => (
-            <Reveal key={s.n} delay={i * 0.1}>
-              <div className="glass relative rounded-2xl p-6 h-full">
-                <span className="font-display absolute top-5 right-6 text-5xl font-extrabold text-white/[0.06]">{s.n}</span>
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 font-display font-bold text-white shadow-lg shadow-sky-500/25">
+            <AnimatedSection key={s.n} delay={i * 0.1}>
+              <GlassCard maxTilt={5} className="relative h-full overflow-hidden p-6">
+                <span className="font-display pointer-events-none absolute -right-2 -top-6 text-8xl font-extrabold text-white/[0.05]">
                   {s.n}
                 </span>
-                <h3 className="font-display font-bold text-lg mt-4">{s.title}</h3>
-                <p className="text-sm text-muted-foreground mt-1.5">{s.desc}</p>
-              </div>
-            </Reveal>
+                <span className="font-display flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 text-sm font-bold text-white shadow-lg shadow-sky-500/30">
+                  {s.n}
+                </span>
+                <h3 className="font-display mt-5 text-lg font-bold">{s.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.desc}</p>
+              </GlassCard>
+            </AnimatedSection>
           ))}
         </div>
       </section>
 
       {/* ── TESTIMONIALS ─────────────────────────────────────── */}
-      <section className="container-custom">
-        <Reveal>
-          <h2 className="font-display text-3xl md:text-4xl font-bold text-center mb-12">
-            People in the sky <span className="text-sky-400">say it best</span>
-          </h2>
-        </Reveal>
-        <div className="grid md:grid-cols-3 gap-5">
+      <section className="container-custom mt-28">
+        <AnimatedHeading kicker="Voices from the aisle" accent="say it best" center>
+          People in the sky
+        </AnimatedHeading>
+        <div className="mt-12 grid gap-5 md:grid-cols-3">
           {TESTIMONIALS.map((t, i) => (
-            <Reveal key={t.name} delay={i * 0.1}>
-              <div className="glass rounded-2xl p-6 h-full flex flex-col">
-                <div className="flex gap-1 mb-4">
+            <AnimatedSection key={t.name} delay={i * 0.1}>
+              <GlassCard className="flex h-full flex-col p-6">
+                <div className="flex gap-1" aria-label={`${t.stars} out of 5 stars`}>
                   {Array.from({ length: 5 }).map((_, s) => (
-                    <Star key={s} className={`h-4 w-4 ${s < t.stars ? "text-amber-400 fill-amber-400" : "text-white/20"}`} />
+                    <Star key={s} className={`h-4 w-4 ${s < t.stars ? "fill-amber-400 text-amber-400" : "text-white/20"}`} />
                   ))}
                 </div>
-                <p className="text-sm text-slate-200 flex-1">"{t.quote}"</p>
-                <div className="flex items-center gap-3 mt-5">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-sky-400/30 to-blue-600/30 border border-white/15 font-display font-bold text-sky-300">
+                <p className="mt-4 flex-1 text-sm leading-relaxed text-slate-200">"{t.quote}"</p>
+                <div className="mt-6 flex items-center gap-3">
+                  <div className="font-display flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-sky-400/30 to-blue-600/30 text-sm font-bold text-sky-300 ring-1 ring-white/15">
                     {t.name.split(" ").map((n) => n[0]).join("")}
                   </div>
                   <div>
@@ -576,27 +535,31 @@ export default function Home() {
                     <p className="text-xs text-muted-foreground">{t.role}</p>
                   </div>
                 </div>
-              </div>
-            </Reveal>
+              </GlassCard>
+            </AnimatedSection>
           ))}
         </div>
       </section>
 
       {/* ── NEWSLETTER CTA ───────────────────────────────────── */}
-      <section className="container-custom">
-        <Reveal>
-          <div className="glass-strong relative overflow-hidden rounded-3xl p-10 md:p-14 text-center">
-            <FlyingPlane variant="takeoff" size={90} className="top-6 right-10" />
-            <div className="max-w-xl mx-auto">
-              <h2 className="font-display text-3xl md:text-4xl font-bold">
-                One email a week, <span className="text-sky-400">zero turbulence</span>
+      <section className="container-custom mt-28">
+        <AnimatedSection>
+          <div className="glass-strong relative overflow-hidden rounded-3xl p-10 text-center md:p-16">
+            <VideoBackground video="takeoffSun" overlayOpacity={0.55} videoOpacity={0.35} blur="blur(8px)" className="rounded-3xl" />
+            <CloudLayer density={3} intensity={0.4} />
+            <div className="relative z-10 mx-auto max-w-xl">
+              <span className="flex items-center justify-center gap-2 text-xs font-semibold tracking-[0.25em] text-sky-300 uppercase">
+                <PlaneTakeoff className="h-4 w-4" /> The briefing
+              </span>
+              <h2 className="font-display mt-4 text-3xl font-bold tracking-tight md:text-4xl">
+                One email a week, <span className="text-gradient-sky">zero turbulence</span>
               </h2>
-              <p className="text-muted-foreground mt-3">
+              <p className="mt-3 text-muted-foreground">
                 The week's biggest movements: new routes out of Zanzibar, airport delays worth knowing, and the
                 occasional radar oddity.
               </p>
               {subscribed ? (
-                <div className="mt-6 glass rounded-2xl px-6 py-4 text-emerald-400 font-medium inline-flex items-center gap-2">
+                <div className="glass mt-7 inline-flex items-center gap-2 rounded-2xl px-6 py-4 font-medium text-emerald-400">
                   <Zap className="h-4 w-4" /> You're on the list — check your inbox.
                 </div>
               ) : (
@@ -605,24 +568,45 @@ export default function Home() {
                     e.preventDefault()
                     if (email.trim()) setSubscribed(true)
                   }}
-                  className="mt-6 flex flex-col sm:flex-row gap-3 max-w-md mx-auto"
+                  className="mx-auto mt-7 flex max-w-md flex-col gap-3 sm:flex-row"
                 >
-                  <Input
+                  <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="flex-1 rounded-xl bg-white/5 border-white/15 h-12 px-4"
+                    className="h-12 flex-1 rounded-xl border border-white/15 bg-white/5 px-4 text-sm outline-none transition-colors focus:border-sky-400"
+                    aria-label="Email address"
                   />
-                  <Button type="submit" size="lg" className="gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 shadow-lg shadow-sky-500/25">
+                  <AnimatedButton type="submit" size="lg" shine>
                     <Send className="h-4 w-4" /> Subscribe
-                  </Button>
+                  </AnimatedButton>
                 </form>
               )}
             </div>
           </div>
-        </Reveal>
+        </AnimatedSection>
+      </section>
+
+      {/* Airplane wing section image is used in the trails CTA above via video */}
+      <section className="container-custom mt-24">
+        <AnimatedSection>
+          <div className="relative overflow-hidden rounded-3xl">
+            <img src={HERO_IMG} alt="" className="h-64 w-full object-cover opacity-40 md:h-80" loading="lazy" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#030610] via-[#030610]/60 to-transparent" />
+            <div className="absolute inset-0 flex items-center">
+              <div className="max-w-lg p-8">
+                <p className="font-display text-2xl font-bold leading-snug md:text-3xl">
+                  Every plane above you, <span className="text-gradient-sky">accounted for.</span>
+                </p>
+                <AnimatedButton to="/dashboard" variant="glass" size="md" className="mt-5">
+                  <LayoutDashboard className="h-4 w-4" /> Explore the dashboard
+                </AnimatedButton>
+              </div>
+            </div>
+          </div>
+        </AnimatedSection>
       </section>
     </div>
   )
